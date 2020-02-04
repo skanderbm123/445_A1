@@ -84,7 +84,17 @@ public class HTTPLibrary {
 					responseData = inputStream.read();
 				}
 				
-				System.out.println("Server response: " + response);
+				// Check whether 'verbose' option was passed in command arguments
+				boolean verbose = false;
+				for(int i=0 ; i < args.length ; i++) {
+					if(args[i].equals("-v"))
+						verbose = true;	
+				}
+				
+				if(!verbose)
+					System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
+				else
+					System.out.println("Server response: " + response);
 				
 				socket.close();
 				inputStream.close();
