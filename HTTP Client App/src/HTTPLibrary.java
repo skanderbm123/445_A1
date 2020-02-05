@@ -55,113 +55,25 @@ public class HTTPLibrary {
 	
 	// Method representing the GET operation
 	public static void GetRequest(String[] args) {
-		System.out.println("--GET REQUEST--");
 		
-		String URL = args[args.length - 1];
+		HTTPGet httpGet = new HTTPGet();
 		
-		if(!URL.equals("")) {
-			try {				
-				// To get IP address of URL
-				InetAddress ip = InetAddress.getByName(new URL(URL).getHost());
-				var socket = new Socket(ip, 80);
-				
-				// Setting up input and output streams
-				InputStream inputStream = socket.getInputStream();
-				OutputStream outputStream = socket.getOutputStream();
-				
-				String request = "GET /get?key1=value1 HTTP/1.0\r\n\r\n";
-				
-				outputStream.write(request.getBytes());
-				outputStream.flush();
-				
-				StringBuilder response = new StringBuilder();
-				
-				int responseData = inputStream.read();
-				
-				// Convert response bytes to String
-				while(responseData != -1) {
-					response.append((char) responseData);
-					responseData = inputStream.read();
-				}
-				
-				// Check whether 'verbose' option was passed in command arguments
-				boolean verbose = false;
-				for(int i=0 ; i < args.length ; i++) {
-					if(args[i].equals("-v"))
-						verbose = true;	
-				}
-				
-				if(!verbose)
-					System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
-				else
-					System.out.println("Server response: " + response);
-				
-				socket.close();
-				inputStream.close();
-				outputStream.close();
-			}
-			catch(Exception e) {
-				System.err.println(e);
-			}
-		}
-		else {
-			System.out.println("Please enter valid arguments of the form:\n" + 
-					"httpc (get|post) [-v] (-h \"k:v\")* [-d inline-data] [-f file] URL");
-		}
+		httpGet.setUrl(args[args.length - 1]);
+		
+		httpGet.operation(args);
+		
 	}
 	
 	
 	// Method representing the POST operation
 	public static void PostRequest(String[] args) {
-		System.out.println("--POST REQUEST--");
 		
-		String URL = args[args.length - 1];
+		HTTPPost httpPost = new HTTPPost();
 		
-		if(!URL.equals("")) {
-			try {				
-				// To get IP address of URL
-				InetAddress ip = InetAddress.getByName(new URL(URL).getHost());
-				var socket = new Socket(ip, 80);
-				
-				// Setting up input and output streams
-				InputStream inputStream = socket.getInputStream();
-				OutputStream outputStream = socket.getOutputStream();
-				
-				String body = "key1=value1&key2=value2";
-				
-				String request = "POST /post HTTP/1.0\r\n"
-						+ "Content-Type: application/x-www-form-urlencoded\r\n"
-						+ "Content-Length: " + body.length() + "\r\n"
-						+ "\r\n"
-						+ body;
-				
-				outputStream.write(request.getBytes());
-				outputStream.flush();
-				
-				StringBuilder response = new StringBuilder();
-				
-				int responseData = inputStream.read();
-				
-				// Convert response bytes to String
-				while(responseData != -1) {
-					response.append((char) responseData);
-					responseData = inputStream.read();
-				}
-				
-				System.out.println("Server response: " + response);
-				
-				socket.close();
-				inputStream.close();
-				outputStream.close();
-			}
-			catch(Exception e) {
-				System.err.println(e);
-			}
-		}
-		else {
-			System.out.println("Please enter valid arguments of the form:\n" + 
-					"httpc (get|post) [-v] (-h \"k:v\")* [-d inline-data] [-f file] URL");
-		}
+		httpPost.setUrl(args[args.length - 1]);
+		
+		httpPost.operation(args);
+		
 	}
 
 }
