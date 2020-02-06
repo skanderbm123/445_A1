@@ -26,7 +26,8 @@ public class HTTPGet {
 			try {				
 				// To get IP address of URL
 				InetAddress ip = InetAddress.getByName(new URL(url).getHost());
-				var socket = new Socket(ip, 80);
+				
+				Socket socket = new Socket(ip,80);
 				
 				// Setting up input and output streams
 				InputStream inputStream = socket.getInputStream();

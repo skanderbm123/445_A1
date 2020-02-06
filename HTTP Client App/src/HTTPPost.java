@@ -27,28 +27,30 @@ public class HTTPPost {
 				// To get IP address of URL
 				InetAddress ip = InetAddress.getByName(new URL(url).getHost());
 				var socket = new Socket(ip, 80);
-				
-				
+	
 				// Setting up input and output streams
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 				
-				String body = "key1=value1&key2=value2";
 				
-				String[] headers = CheckHeaders(args);
+				String data = CheckData(args);
+			
+				String body = data;
 				
-				String contextType = "";
+				String[] getHeaders = CheckHeaders(args);
 				
-				for(int i=0;i<headers.length;i++) {
+				String headers = "";
+				
+				for(int i=0;i<getHeaders.length;i++) {
 					
-					contextType = headers[i] + "\r\n";
+					headers = headers + getHeaders[i] + "\r\n";
 					
 				}
 				
 				
 				String request = "POST /post HTTP/1.0\r\n"
 						+ "Content-Length: " + body.length() + "\r\n"+
-						contextType+ "\r\n"
+						headers+ "\r\n" 
 						+ body;
 				
 				outputStream.write(request.getBytes());
@@ -64,11 +66,8 @@ public class HTTPPost {
 					responseData = inputStream.read();
 				}
 				
-				
-			
-				
 				// Check whether 'verbose' option was passed in command arguments
-				CheckVerbose(args , response);
+				CheckVerbose(args , response , data);
 				
 				socket.close();
 				inputStream.close();
@@ -84,9 +83,36 @@ public class HTTPPost {
 		}
 	}
 
+	private String CheckData(String[] args) {
+		
+		boolean data=false;
+		
+		for(int i=0 ; i < args.length ; i++) {
+			if(args[i].equals("-d")) {
+				
+				if(data == true) {
+				System.out.println("Duplicate inline data, you can only have one -d");
+				System.exit(0);
+				}
+				data=true;
+			  }
+			}
+
+		if(data==false) {
+			return "";
+		}else {
+			for(int i = 0 ; i < args.length ; i++) {
+				if(args[i].equals("-d"))
+						return args[i+1];
+	
+			}			
+		}
+
+		return null;
+	}
+
 	private String[] CheckHeaders(String[] args) {
-		
-		
+
 		int index = 0;
 		int count=0;
 		//find index of headers
@@ -97,20 +123,17 @@ public class HTTPPost {
 				if(count==1)
 					index=i;
 			}
-			
-		
-			
+		}
+
+		if(count==0) {
+			return new String[0];
 		}
 		
-
 			String[] heads = new String[count];
 			
 			// for headers
 		for(int i = 0 ; i < args.length ; i++) {
-			
-			
 			heads[i] = args[index+1];
-
 		
 			if(args[index+2].equals("-d") || args[index+2].equals("-f") || args[index+2].contains("http"))
 				break;
@@ -118,26 +141,45 @@ public class HTTPPost {
 			index=index+2;
 			
 		}
-		
-		
+
+		// if dupes found in headers array
+		for(int i=0;i<heads.length;i++) {
+			for(int j=(i+1);j<heads.length;j++) {
+				if(heads[j].equalsIgnoreCase(heads[i])) {
+					System.out.println("Duplicate found in headers, please make sure to have no duplicate ");
+					System.exit(0);
+				}
+			}
+		}
 		return heads; 
-		
-		
+
 	}
 
-	private void CheckVerbose(String[] args , StringBuilder response) {
+	private void CheckVerbose(String[] args , StringBuilder response , String data) {
 		boolean verbose = false;
 		for(int i=0 ; i < args.length ; i++) {
 			if(args[i].equals("-v"))
 				verbose = true;
 		}
 		
+		int indexJson =response.indexOf("\"json\"") +8 ;
+
+		if(!verbose)
+			System.out.println("Server response: " + response.substring( response.indexOf("{")-1,indexJson)+ data + response.substring(indexJson +4));
+		else
+			System.out.println("Server response: " + response.substring(0 ,indexJson)+ data +response.substring(indexJson +4));
+		
+		
+		
+		/*
 		if(!verbose)
 			System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
 		else
-			System.out.println("Server response: " + response);
+			System.out.println("Server response: " + response);*/
 		
 	}
-	
-	
+
 }
+
+
+	
