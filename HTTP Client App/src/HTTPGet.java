@@ -27,6 +27,10 @@ public class HTTPGet {
 				// To get IP address of URL
 				InetAddress ip = InetAddress.getByName(new URL(url).getHost());
 				
+				// Checks if given URL is good or not
+				if(! ip.isReachable(0))
+					System.out.println("URL provided is not a valid one!");
+				
 				Socket socket = new Socket(ip,80);
 				
 				// Setting up input and output streams
