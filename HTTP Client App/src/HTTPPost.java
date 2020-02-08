@@ -180,7 +180,32 @@ public class HTTPPost {
 		if(!verbose)
 			System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
 		else
-			System.out.println("Server response: " + response);*/
+			System.out.println("Server response: " + response);*/	
+	}
+	
+	private void CheckFile(String[] args) {
+		
+		boolean file=false;
+		
+		for(int i=0 ; i < args.length ; i++) {
+			if(args[i].equals("-f"))
+				file = true;
+				
+		}
+		
+		//checks for -d and -f 
+		for(int i=0 ; i < args.length ; i++) {
+			if(args[i].equals("-d") && file) {
+				System.out.println("Error : Either [-d] or [-f] can be used but not both");
+				System.exit(0);
+			}
+		}
+		
+		if(file) {
+			
+		}
+		
+
 		
 	}
 

@@ -28,7 +28,7 @@ public class HTTPGet {
 				InetAddress ip = InetAddress.getByName(new URL(url).getHost());
 				
 				// Checks if given URL is good or not
-				if(! ip.isReachable(0))
+				if(!ip.isReachable(0))
 					System.out.println("URL provided is not a valid one!");
 				
 				Socket socket = new Socket(ip,80);
@@ -37,7 +37,10 @@ public class HTTPGet {
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 				
-				String request = "GET /get?key1=value1 HTTP/1.0\r\n\r\n";
+				
+				int KeysValue = GetArgs(args);
+	
+				String request = "GET /get?"+args[args.length-1].substring(KeysValue+1)+" HTTP/1.0\r\n\r\n";
 				
 				outputStream.write(request.getBytes());
 				outputStream.flush();
@@ -81,6 +84,14 @@ public class HTTPGet {
 			System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
 		else
 			System.out.println("Server response: " + response);
+		
+	}
+	private int GetArgs (String[] array) {
+
+		int indexGet = array[array.length-1].lastIndexOf("?");
+		
+		
+		return indexGet;
 		
 	}
 	
