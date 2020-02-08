@@ -3,6 +3,10 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
+import java.util.Scanner;
+import java.io.File; 
+import java.io.FileNotFoundException; 
+import java.util.Scanner; 
 
 public class HTTPPost {
 
@@ -37,11 +41,32 @@ public class HTTPPost {
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 				
+				boolean file=false;
+				boolean data=false;
 				
-				String data = CheckData(args);
-			
-				String body = data;
+				for(int i=0 ; i < args.length ; i++) {
+					if(args[i].equals("-f"))
+						file = true;
+					if(args[i].equals("-d"))
+						data = true;
+						
+				}
 				
+				String body="";
+				String InlineData="";
+				String ContentFile="";
+				
+				if(data) {
+				InlineData = CheckData(args);
+				body = InlineData;
+				}
+				
+				if(file) {
+				ContentFile = CheckFile(args);
+				body = ContentFile;
+				}
+					
+	
 				String[] getHeaders = CheckHeaders(args);
 				
 				String headers = "";
@@ -72,7 +97,12 @@ public class HTTPPost {
 				}
 				
 				// Check whether 'verbose' option was passed in command arguments
-				CheckVerbose(args , response , data);
+				if(data)
+				CheckVerbose(args , response , InlineData);
+				if(file)
+				CheckVerbose(args , response , ContentFile);
+				if(!data && !file)
+				CheckVerbose(args , response , "");
 				
 				socket.close();
 				inputStream.close();
@@ -160,7 +190,7 @@ public class HTTPPost {
 
 	}
 
-	private void CheckVerbose(String[] args , StringBuilder response , String data) {
+	private void CheckVerbose(String[] args , StringBuilder response , String InlineData) {
 		boolean verbose = false;
 		for(int i=0 ; i < args.length ; i++) {
 			if(args[i].equals("-v"))
@@ -170,9 +200,9 @@ public class HTTPPost {
 		int indexJson =response.indexOf("\"json\"") +8 ;
 
 		if(!verbose)
-			System.out.println("Server response: " + response.substring( response.indexOf("{")-1,indexJson)+ data + response.substring(indexJson +4));
+			System.out.println("Server response: " + response.substring( response.indexOf("{")-1,indexJson)+ InlineData + response.substring(indexJson +4));
 		else
-			System.out.println("Server response: " + response.substring(0 ,indexJson)+ data +response.substring(indexJson +4));
+			System.out.println("Server response: " + response.substring(0 ,indexJson)+ InlineData +response.substring(indexJson +4));
 		
 		
 		
@@ -183,16 +213,18 @@ public class HTTPPost {
 			System.out.println("Server response: " + response);*/	
 	}
 	
-	private void CheckFile(String[] args) {
+	private String CheckFile(String[] args) {
 		
 		boolean file=false;
-		
+		int index=0;
 		for(int i=0 ; i < args.length ; i++) {
-			if(args[i].equals("-f"))
+			if(args[i].equals("-f")) {
 				file = true;
+				index = i;
+			}
 				
 		}
-		
+
 		//checks for -d and -f 
 		for(int i=0 ; i < args.length ; i++) {
 			if(args[i].equals("-d") && file) {
@@ -202,11 +234,24 @@ public class HTTPPost {
 		}
 		
 		if(file) {
+		   
+			String fileData="";
 			
+			 try {
+			      File fileObj = new File(args[index+1]);
+			      Scanner myReader = new Scanner(fileObj);
+			    	fileData = myReader.nextLine();
+			      myReader.close();
+			    } catch (FileNotFoundException e) {
+			      System.out.println("An error occurred during the lecture of the file");
+			      e.printStackTrace();
+			    }
+		
+		    return fileData;
 		}
 		
+		return null;
 
-		
 	}
 
 }
