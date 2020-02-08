@@ -102,6 +102,7 @@ public class HTTPGet {
 		PrintWriter pw = null;
 		File file = null;
 		
+		if(options) {
 		try {
 			file = new File(outputTxtFile);
 			boolean created = file.createNewFile();
@@ -113,17 +114,20 @@ public class HTTPGet {
 		catch(IOException e) {
 			System.out.println("File not created");
 		}
+		}
 		
-		if(options && verbose)
+		if(options && verbose) {
 			pw.println("Server response: " + response);
-		else if(options && !verbose)
+			pw.close();
+		}else if(options && !verbose) {
 			pw.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
-		else if(!options & !verbose)
+			pw.close();
+		}else if(!options & !verbose)
 			System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
 		else
 			System.out.println("Server response: " + response);
 		
-		pw.close();
+		
 		
 	}
 	
