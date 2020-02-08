@@ -3,6 +3,11 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
+import java.io.PrintWriter;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.FileNotFoundException;
+import java.io.File;
 
 public class HTTPGet {
 
@@ -48,15 +53,17 @@ public class HTTPGet {
 				StringBuilder response = new StringBuilder();
 				
 				int responseData = inputStream.read();
+				int redirect_Counter = 0;
 				
 				// Convert response bytes to String
 				while(responseData != -1) {
 					response.append((char) responseData);
 					responseData = inputStream.read();
+					//System.out.println(response);
 				}
 				
 				// Check whether 'verbose' option was passed in command arguments
-				CheckVerbose(args , response);
+				CheckOptions(args , response);
 			
 				
 				socket.close();
@@ -73,19 +80,54 @@ public class HTTPGet {
 		}
 	}
 
-	private void CheckVerbose(String[] args , StringBuilder response) {
+	// Check for verbose and options commands (-v, -o)
+	private void CheckOptions(String[] args , StringBuilder response) {
 		boolean verbose = false;
+		boolean options = false;
+		String outputTxtFile = "";
+		
 		for(int i=0 ; i < args.length ; i++) {
 			if(args[i].equals("-v"))
 				verbose = true;
+			else if(args[i].equals("-o")) {
+				options = true;
+			}
+			
+			if(options == true) {
+				outputTxtFile = args[i+1];
+				break;
+			}			
+		}	
+		
+		PrintWriter pw = null;
+		File file = null;
+		
+		try {
+			file = new File(outputTxtFile);
+			boolean created = file.createNewFile();
+			pw = new PrintWriter(new FileOutputStream(outputTxtFile));
+		}
+		catch(FileNotFoundException e) {
+			System.out.println("File " + outputTxtFile + " not foud.");
+		}
+		catch(IOException e) {
+			System.out.println("File not created");
 		}
 		
-		if(!verbose)
+		if(options && verbose)
+			pw.println("Server response: " + response);
+		else if(options && !verbose)
+			pw.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
+		else if(!options & !verbose)
 			System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
 		else
 			System.out.println("Server response: " + response);
 		
+		pw.close();
+		
 	}
+	
+	
 	private int GetArgs (String[] array) {
 
 		int indexGet = array[array.length-1].lastIndexOf("?");
