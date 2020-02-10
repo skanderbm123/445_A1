@@ -3,6 +3,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.io.PrintWriter;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -29,17 +30,26 @@ public class HTTPGet {
 
 		if(!url.equals("")) {
 			try {				
+				InetAddress ip = null;
+				
+				try {
 				// To get IP address of URL
-			
-				InetAddress ip = InetAddress.getByName(new URL(url).getHost());
+				ip = InetAddress.getByName(new URL(url).getHost());
 				
-				// Checks if given URL is good or not
-				if(!ip.isReachable(0))
-					System.out.println("URL provided is not a valid one!");
+				}
+				catch (UnknownHostException exception)
+		        {
+		            System.err.println("ERROR: Cannot access '" + url + "'");
+		            System.exit(0);
+		        }
 				
-				Socket socket = new Socket(ip,80);
-			
-			
+
+				var socket = new Socket(ip, 80);
+				
+				// checks that body does not contains -d , -f or  -h
+				CheckBody(args);
+				
+				
 				// Setting up input and output streams
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
@@ -52,7 +62,8 @@ public class HTTPGet {
 				}else {
 					body=args[args.length-1].substring(KeysValue+1);
 				}
-	
+				
+				
 				String request = "GET /get?"+body+" HTTP/1.1\r\nhost:"+ip.getHostName()+"\r\n\r\n";
 				
 				outputStream.write(request.getBytes());
@@ -141,12 +152,31 @@ public class HTTPGet {
 	
 	
 	private int GetArgs (String[] array) {
-
 		int indexGet = array[array.length-1].lastIndexOf("?");
-		
-		
 		return indexGet;
+	}
+	
+	private void CheckBody(String[] args) {
+		for(int i=0;i<args.length;i++) {
+			if(args[i].equals("-h") || args[i].equals("-d")|| args[i].equals("-f")) {
+				System.out.println("You cannot have a body in the GET request");
+				System.exit(0);
+			}
+			
+		}
 		
+		
+		
+	}
+	
+	
+	private void redirect(String response) {
+	if(response.matches("3\\d?\\d?")){
+	
+	
+		
+	}
+	
 	}
 	
 	

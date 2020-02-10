@@ -3,7 +3,11 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Scanner;
+
+import javax.naming.NamingException;
+
 import java.io.File; 
 import java.io.FileNotFoundException; 
 import java.util.Scanner; 
@@ -28,16 +32,22 @@ public class HTTPPost {
 		
 		if(!url.equals("")) {
 			try {				
-				// To get IP address of URL
-				InetAddress ip = InetAddress.getByName(new URL(url).getHost());
 				
-				// Checks if given URL is good or not
-				if(! ip.isReachable(0))
-					System.out.println("URL provided is not a valid one!");
+				InetAddress ip = null;
+				
+				try {
+				// To get IP address of URL
+				 ip = InetAddress.getByName(new URL(url).getHost());
+				
+				}
+				catch (UnknownHostException exception)
+		        {
+		            System.err.println("ERROR: Cannot access '" + url + "'");
+		            System.exit(0);
+		        }
 				
 				var socket = new Socket(ip, 80);
-	
-				// Setting up input and output streams
+				
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 				
@@ -79,9 +89,10 @@ public class HTTPPost {
 				
 				
 				String request = "POST /post HTTP/1.0\r\n"
-						+ "Content-Length: " + body.length() + "\r\n"+
+						+ "Content-Length: " + body.length() + "\r\n"+ "Host: "+ip.getHostName()+"\r\n"+
 						headers+ "\r\n" 
 						+ body;
+				
 				
 				outputStream.write(request.getBytes());
 				outputStream.flush();
