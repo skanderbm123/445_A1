@@ -1,5 +1,6 @@
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
@@ -8,8 +9,11 @@ import java.util.Scanner;
 
 import javax.naming.NamingException;
 
+import java.io.BufferedWriter;
 import java.io.File; 
-import java.io.FileNotFoundException; 
+import java.io.FileNotFoundException;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Scanner; 
 
 public class HTTPPost {
@@ -203,17 +207,57 @@ public class HTTPPost {
 
 	private void CheckVerbose(String[] args , StringBuilder response , String InlineData) {
 		boolean verbose = false;
+		boolean options = false;
+		String outputTxtFile = "";
+		
 		for(int i=0 ; i < args.length ; i++) {
 			if(args[i].equals("-v"))
 				verbose = true;
+			else if(args[i].equals("-o")) {
+				options = true;
+			}
+			
+			if(options == true) {
+				outputTxtFile = args[i+1];
+				break;
+			}			
+		}	
+		
+		PrintWriter pw = null;
+		File file = null;
+		
+		if(options) {
+		try {
+			 file = new File(outputTxtFile);
+			 FileWriter fw = new FileWriter(file.getAbsoluteFile(), true);
+			 pw = new PrintWriter(new BufferedWriter(new FileWriter(outputTxtFile, true)));
+		}
+		catch(FileNotFoundException e) {
+			System.out.println("File " + outputTxtFile + " not found.");
+		}
+		catch(IOException e) {
+			System.out.println("File not created");
+		}
 		}
 		
 		int indexJson =response.indexOf("\"json\"") +8 ;
 
-		if(!verbose)
+		
+		
+		
+		if(options && verbose) {
+			pw.println("Server response: " + response.substring(0 ,indexJson)+ InlineData +response.substring(indexJson +4));
+			pw.close();
+		}else if(options && !verbose) {
+			pw.println("Server response: " + response.substring( response.indexOf("{")-1,indexJson)+ InlineData + response.substring(indexJson +4));
+			pw.close();
+		}else if(!options & !verbose)
 			System.out.println("Server response: " + response.substring( response.indexOf("{")-1,indexJson)+ InlineData + response.substring(indexJson +4));
 		else
 			System.out.println("Server response: " + response.substring(0 ,indexJson)+ InlineData +response.substring(indexJson +4));
+		}
+		
+		
 		
 		
 		
@@ -222,7 +266,7 @@ public class HTTPPost {
 			System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
 		else
 			System.out.println("Server response: " + response);*/	
-	}
+	
 	
 	private String CheckFile(String[] args) {
 		

@@ -7,8 +7,10 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.io.PrintWriter;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.FileNotFoundException;
+import java.io.BufferedWriter;
 import java.io.File;
 
 public class HTTPGet {
@@ -51,12 +53,24 @@ public class HTTPGet {
 				CheckBody(args);
 				int StatusCode = FindCode(url);
 				
+				String[] getHeaders = CheckHeaders(args);
+				
+				String headers = "";
+				
+				for(int i=0;i<getHeaders.length;i++) {
+					
+					headers = headers + getHeaders[i] + "\r\n";
+					
+				}
+				
+				
+				
 				// Setting up input and output streams
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 				
 				
-				String request = "GET "+url+" HTTP/1.0\r\nhost:"+ip.getHostName()+"\r\n\r\n";
+				String request = "GET "+url+" HTTP/1.0\r\n"+headers+"\r\nhost:"+ip.getHostName()+"\r\n\r\n";
 				
 				outputStream.write(request.getBytes());
 				outputStream.flush();
@@ -74,6 +88,9 @@ public class HTTPGet {
 				}
 				
 				if(StatusCode>299 && StatusCode<320) {
+
+					boolean options = false;
+					String outputTxtFile = "";
 					int start;
 					int end;
 				
@@ -85,11 +102,10 @@ public class HTTPGet {
 						
 						System.out.println(redirectUrl);
 						System.out.println();
+						
 						args[args.length-1]=redirectUrl;
 						setUrl(redirectUrl);
 						
-						System.out.println("Server response: " + response);
-						System.out.println();
 						
 						
 						
@@ -109,7 +125,42 @@ public class HTTPGet {
 					System.out.println("Server response: " + response);
 					System.out.println();
 					
+					for(int i=0 ; i < args.length ; i++) {
+						
+						if(args[i].equals("-o")) {
+							options = true;
+						}
+						
+						if(options == true) {
+							outputTxtFile = args[i+1];
+							break;
+						}			
+					}	
+					
+					if(options) {
+						try {
+							File file = new File(outputTxtFile);
+							FileWriter fw = new FileWriter(file.getAbsoluteFile(), true);
+							PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(outputTxtFile, true)));
+							pw.println();
+							pw.println("Server response: " + response);
+							pw.close();
+							
+						}
+						catch(FileNotFoundException e) {
+							System.out.println("File " + outputTxtFile + " not found.");
+						}
+						catch(IOException e) {
+							System.out.println("File not created");
+						}
+						
+						}
+
+					
 					}
+					
+					
+					
 					operation(args);
 				}
 				else {
@@ -155,9 +206,9 @@ public class HTTPGet {
 		
 		if(options) {
 		try {
-			file = new File(outputTxtFile);
-			boolean created = file.createNewFile();
-			pw = new PrintWriter(new FileOutputStream(outputTxtFile));
+			 file = new File(outputTxtFile);
+			 FileWriter fw = new FileWriter(file.getAbsoluteFile(), true);
+			 pw = new PrintWriter(new BufferedWriter(new FileWriter(outputTxtFile, true)));
 		}
 		catch(FileNotFoundException e) {
 			System.out.println("File " + outputTxtFile + " not found.");
@@ -190,11 +241,59 @@ public class HTTPGet {
 		
 		
 	}
+	
+	
+	private String[] CheckHeaders(String[] args) {
+
+		int index = 0;
+		int count=0;
+		//find index of headers
+		for(int i=0 ; i < args.length ; i++) {
+			
+			if(args[i].equals("-h")) {
+				count++;		
+				if(count==1)
+					index=i;
+			}
+		}
+
+		if(count==0) {
+			return new String[0];
+		}
+		
+			String[] heads = new String[count];
+			
+			// for headers
+		for(int i = 0 ; i < args.length ; i++) {
+			heads[i] = args[index+1];
+		
+			if(args[index+2].equals("-d") || args[index+2].equals("-f") || args[index+2].contains("http"))
+				break;
+
+			index=index+2;
+			
+		}
+
+		// if dupes found in headers array
+		for(int i=0;i<heads.length;i++) {
+			for(int j=(i+1);j<heads.length;j++) {
+				if(heads[j].equalsIgnoreCase(heads[i])) {
+					System.out.println("Duplicate found in headers, please make sure to have no duplicate ");
+					System.exit(0);
+				}
+			}
+		}
+		return heads; 
+
+	}
+	
+	
+	
 
 	
 	private void CheckBody(String[] args) {
 		for(int i=0;i<args.length;i++) {
-			if(args[i].equals("-h") || args[i].equals("-d")|| args[i].equals("-f")) {
+			if( args[i].equals("-d")|| args[i].equals("-f")) {
 				System.out.println("You cannot have a body in the GET request");
 				System.exit(0);
 			}
@@ -218,8 +317,7 @@ public class HTTPGet {
 		  e.printStackTrace();
 
 		}
-		
-		
+
 		
 		return code;
 	}
