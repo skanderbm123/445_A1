@@ -74,19 +74,42 @@ public class HTTPGet {
 				}
 				
 				if(StatusCode>299 && StatusCode<320) {
+					int start;
+					int end;
+				
+					if(url.substring(url.length()-1).equalsIgnoreCase("1")) {
+						start = response.indexOf("URL: ")+url.length();
+						end= response.indexOf("</a>.");
+						
+						String redirectUrl = response.substring(start,end);
+						
+						System.out.println(redirectUrl);
+						System.out.println();
+						args[args.length-1]=redirectUrl;
+						setUrl(redirectUrl);
+						
+						System.out.println("Server response: " + response);
+						System.out.println();
+						
+						
+						
+					}else {
 					
-					int NumberLocation = response.indexOf("Location: ")+10;
-					int NumberAccess= response.indexOf("Access-Control-Allow-Origin:");
+					 start = response.indexOf("URL: ")+16+url.length();
+					 end= response.indexOf("</a>.");
 					
-					String redirectUrl = response.substring(NumberLocation,NumberAccess);
-		
-					args[args.length-1]=redirectUrl;
-	
-					setUrl(redirectUrl);
-					System.out.println("Server response: " + response);
-					
+					String redirectUrl = response.substring(start,end);
 					System.out.println(redirectUrl);
+					System.out.println();
 					
+					
+					args[args.length-1]=redirectUrl;
+					setUrl(redirectUrl);
+					
+					System.out.println("Server response: " + response);
+					System.out.println();
+					
+					}
 					operation(args);
 				}
 				else {
