@@ -54,17 +54,8 @@ public class HTTPGet {
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 				
-				int KeysValue = GetArgs(args);
-				String body;
 				
-				if(KeysValue==-1) {
-					body="";
-				}else {
-					body=args[args.length-1].substring(KeysValue+1);
-				}
-				
-				
-				String request = "GET /get?"+body+" HTTP/1.1\r\nhost:"+ip.getHostName()+"\r\n\r\n";
+				String request = "GET "+url+" HTTP/1.0\r\nhost:"+ip.getHostName()+"\r\n\r\n";
 				
 				outputStream.write(request.getBytes());
 				outputStream.flush();
@@ -149,12 +140,7 @@ public class HTTPGet {
 		
 		
 	}
-	
-	
-	private int GetArgs (String[] array) {
-		int indexGet = array[array.length-1].lastIndexOf("?");
-		return indexGet;
-	}
+
 	
 	private void CheckBody(String[] args) {
 		for(int i=0;i<args.length;i++) {
@@ -164,19 +150,16 @@ public class HTTPGet {
 			}
 			
 		}
-		
-		
-		
+
 	}
 	
 	
 	private void redirect(String response) {
-	if(response.matches("3\\d?\\d?")){
+		if(response.matches("3\\d?\\d?")){
 	
 	
 		
-	}
-	
+		}
 	}
 	
 	

@@ -11,10 +11,10 @@ public class HTTPLibrary {
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		if(args.length > 0) {
-			if(args[1].equals("get")) {
-				HTTPLibrary.GetRequest(args);
+			if(args[1].toLowerCase().equals("get")) {
+		 		HTTPLibrary.GetRequest(args);
 			}
-			else if (args[1].equals("post")){
+			else if (args[1].toLowerCase().equals("post")){
 				HTTPLibrary.PostRequest(args);
 			}
 			else {
