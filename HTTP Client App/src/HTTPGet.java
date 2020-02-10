@@ -1,5 +1,6 @@
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
@@ -31,7 +32,7 @@ public class HTTPGet {
 		if(!url.equals("")) {
 			try {				
 				InetAddress ip = null;
-				
+
 				try {
 				// To get IP address of URL
 				ip = InetAddress.getByName(new URL(url).getHost());
@@ -48,7 +49,7 @@ public class HTTPGet {
 				
 				// checks that body does not contains -d , -f or  -h
 				CheckBody(args);
-				
+				int StatusCode = FindCode(url);
 				
 				// Setting up input and output streams
 				InputStream inputStream = socket.getInputStream();
@@ -72,9 +73,26 @@ public class HTTPGet {
 					//System.out.println(response);
 				}
 				
+				if(StatusCode>299 && StatusCode<320) {
+					
+					int NumberLocation = response.indexOf("Location: ")+10;
+					int NumberAccess= response.indexOf("Access-Control-Allow-Origin:");
+					
+					String redirectUrl = response.substring(NumberLocation,NumberAccess);
+		
+					args[args.length-1]=redirectUrl;
+	
+					setUrl(redirectUrl);
+					System.out.println("Server response: " + response);
+					
+					System.out.println(redirectUrl);
+					
+					operation(args);
+				}
+				else {
 				// Check whether 'verbose' option was passed in command arguments
-				CheckOptions(args , response);
-			
+				CheckOptions(args , response, StatusCode);
+				}
 				
 				socket.close();
 				inputStream.close();
@@ -91,7 +109,7 @@ public class HTTPGet {
 	}
 
 	// Check for verbose and options commands (-v, -o)
-	private void CheckOptions(String[] args , StringBuilder response) {
+	private void CheckOptions(String[] args , StringBuilder response, int code) {
 		boolean verbose = false;
 		boolean options = false;
 		String outputTxtFile = "";
@@ -126,6 +144,15 @@ public class HTTPGet {
 		}
 		}
 		
+		if(code>299) {
+			if(!options)
+			System.out.println("Server response: " + response);
+			else {
+				pw.println("Server response: " + response);
+				pw.close();
+			}
+		}else {
+		
 		if(options && verbose) {
 			pw.println("Server response: " + response);
 			pw.close();
@@ -136,7 +163,7 @@ public class HTTPGet {
 			System.out.println("Server response: " + response.substring(response.indexOf("{")-1, response.length()-1));
 		else
 			System.out.println("Server response: " + response);
-		
+		}
 		
 		
 	}
@@ -153,13 +180,25 @@ public class HTTPGet {
 
 	}
 	
-	
-	private void redirect(String response) {
-		if(response.matches("3\\d?\\d?")){
-	
-	
-		
+	private int FindCode(String url) {
+		int code=0;
+		try {
+		     URL website = new URL(url);
+		     HttpURLConnection.setFollowRedirects(false);
+		     HttpURLConnection connection = (HttpURLConnection) website.openConnection();
+		     connection.connect();
+		     code = connection.getResponseCode();
+
+		     connection.disconnect();
 		}
+		catch (IOException e) {
+		  e.printStackTrace();
+
+		}
+		
+		
+		
+		return code;
 	}
 	
 	
