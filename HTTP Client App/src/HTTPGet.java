@@ -51,7 +51,6 @@ public class HTTPGet {
 				
 				// checks that body does not contains -d , -f or  -h
 				CheckBody(args);
-				int StatusCode = FindCode(url);
 				
 				String[] getHeaders = CheckHeaders(args);
 				
@@ -87,6 +86,9 @@ public class HTTPGet {
 					//System.out.println(response);
 				}
 				
+				//Check status code
+				int StatusCode = FindCode(response);
+				
 				if(StatusCode>299 && StatusCode<320) {
 
 					boolean options = false;
@@ -105,9 +107,6 @@ public class HTTPGet {
 						
 						args[args.length-1]=redirectUrl;
 						setUrl(redirectUrl);
-						
-						
-						
 						
 					}else {
 					
@@ -156,16 +155,13 @@ public class HTTPGet {
 						
 						}
 
-					
 					}
-					
-					
 					
 					operation(args);
 				}
 				else {
-				// Check whether 'verbose' option was passed in command arguments
-				CheckOptions(args , response, StatusCode);
+					// Check whether 'verbose' option was passed in command arguments
+					CheckOptions(args , response, StatusCode);
 				}
 				
 				socket.close();
@@ -287,9 +283,12 @@ public class HTTPGet {
 
 	}
 	
-	
-	
-
+	// Method that will find the HTTP response Status Code
+	private int FindCode(StringBuilder response) {
+		String statusCode = response.substring(response.indexOf("1.1") + 4, response.indexOf("1.1") + 7);
+		int sc = Integer.parseInt(statusCode);
+		return sc;
+	}
 	
 	private void CheckBody(String[] args) {
 		for(int i=0;i<args.length;i++) {
@@ -300,27 +299,6 @@ public class HTTPGet {
 			
 		}
 
-	}
-	
-	private int FindCode(String url) {
-		int code=0;
-		try {
-		     URL website = new URL(url);
-		     HttpURLConnection.setFollowRedirects(false);
-		     HttpURLConnection connection = (HttpURLConnection) website.openConnection();
-		     connection.connect();
-		     code = connection.getResponseCode();
-
-		     connection.disconnect();
-		}
-		catch (IOException e) {
-		  e.printStackTrace();
-
-		}
-
-		
-		return code;
-	}
-	
+	}	
 	
 }
