@@ -50,7 +50,7 @@ public class HTTPPost {
 		            System.exit(0);
 		        }
 				
-				var socket = new Socket(ip, 80);
+				Socket socket = new Socket(ip, 80);
 				
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();

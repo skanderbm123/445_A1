@@ -47,7 +47,7 @@ public class HTTPGet {
 		        }
 				
 
-				var socket = new Socket(ip, 80);
+				Socket socket = new Socket(ip, 80);
 				
 				// checks that body does not contains -d , -f or  -h
 				CheckBody(args);
