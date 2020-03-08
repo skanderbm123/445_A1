@@ -31,23 +31,32 @@ public class HTTPGet {
 	
 	public void operation(String[] args) {
 
+		String fullUrl = url;
+		String fileName = "";
+
+		if(url.contains("localhost"))
+			fileName = (url.substring(url.indexOf("/", 16)));
+
+
 		if(!url.equals("")) {
 			try {				
 				InetAddress ip = null;
-
+			
 				try {
-				// To get IP address of URL
-				ip = InetAddress.getByName(new URL(url).getHost());
-				
+					// To get IP address of URL
+					if(url.contains("localhost"))
+						setUrl("http://localhost/");
+					
+					ip = InetAddress.getByName(new URL(url).getHost());
 				}
 				catch (UnknownHostException exception)
 		        {
+					
 		            System.err.println("ERROR: Cannot access '" + url + "'");
 		            System.exit(0);
 		        }
-				
+			
 
-				Socket socket = new Socket(ip, 80);
 				
 				// checks that body does not contains -d , -f or  -h
 				CheckBody(args);
@@ -61,113 +70,124 @@ public class HTTPGet {
 					headers = headers + getHeaders[i] + "\r\n";
 					
 				}
-				
-				
-				
+
+				Socket socket = new Socket(ip, 80);
+
+				if(url.contains("localhost")){ 
+					setUrl(fileName);
+				}
 				// Setting up input and output streams
+				String request="";
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
-				
-				
-				String request = "GET "+url+" HTTP/1.0\r\n"+headers+"\r\nhost:"+ip.getHostName()+"\r\n\r\n";
-				
-				outputStream.write(request.getBytes());
-				outputStream.flush();
-				
-				StringBuilder response = new StringBuilder();
-				
-				int responseData = inputStream.read();
-				int redirect_Counter = 0;
-				
-				// Convert response bytes to String
-				while(responseData != -1) {
-					response.append((char) responseData);
-					responseData = inputStream.read();
-					//System.out.println(response);
-				}
-				
-				//Check status code
-				int StatusCode = FindCode(response);
-				
-				if(StatusCode>299 && StatusCode<320) {
 
-					boolean options = false;
-					String outputTxtFile = "";
-					int start;
-					int end;
-				
-					if(url.substring(url.length()-1).equalsIgnoreCase("1")) {
-						start = response.indexOf("URL: ")+url.length();
+			
+					request = "GET " + url + " HTTP/1.0\r\n" + headers + "\r\nhost:" + ip.getHostName() + "\r\n\r\n";
+					
+					if(url.contains(fileName)) {
+						System.out.println(request);
+					}
+					else {
+					outputStream.write(request.getBytes());
+					outputStream.flush();
+					
+					StringBuilder response = new StringBuilder();
+					
+					int responseData = inputStream.read();
+					int redirect_Counter = 0;
+					
+					// Convert response bytes to String
+					while(responseData != -1) {
+						response.append((char) responseData);
+						responseData = inputStream.read();
+						//System.out.println(response);
+					}
+					
+					//Check status code
+					int StatusCode = FindCode(response);
+					
+					if(StatusCode>299 && StatusCode<320) {
+
+						boolean options = false;
+						String outputTxtFile = "";
+						int start;
+						int end;
+					
+						if(url.substring(url.length()-1).equalsIgnoreCase("1")) {
+							start = response.indexOf("URL: ")+url.length();
+							end= response.indexOf("</a>.");
+							
+							String redirectUrl = response.substring(start,end);
+							
+							System.out.println(redirectUrl);
+							System.out.println();
+							
+							args[args.length-1]=redirectUrl;
+							setUrl(redirectUrl);
+							
+						}else {
+						
+						start = response.indexOf("URL: ")+16+url.length();
 						end= response.indexOf("</a>.");
 						
 						String redirectUrl = response.substring(start,end);
-						
 						System.out.println(redirectUrl);
 						System.out.println();
+						
 						
 						args[args.length-1]=redirectUrl;
 						setUrl(redirectUrl);
 						
-					}else {
-					
-					 start = response.indexOf("URL: ")+16+url.length();
-					 end= response.indexOf("</a>.");
-					
-					String redirectUrl = response.substring(start,end);
-					System.out.println(redirectUrl);
-					System.out.println();
-					
-					
-					args[args.length-1]=redirectUrl;
-					setUrl(redirectUrl);
-					
-					System.out.println("Server response: " + response);
-					System.out.println();
-					
-					for(int i=0 ; i < args.length ; i++) {
+						System.out.println("Server response: " + response);
+						System.out.println();
 						
-						if(args[i].equals("-o")) {
-							options = true;
-						}
-						
-						if(options == true) {
-							outputTxtFile = args[i+1];
-							break;
-						}			
-					}	
-					
-					if(options) {
-						try {
-							File file = new File(outputTxtFile);
-							FileWriter fw = new FileWriter(file.getAbsoluteFile(), true);
-							PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(outputTxtFile, true)));
-							pw.println();
-							pw.println("Server response: " + response);
-							pw.close();
+						for(int i=0 ; i < args.length ; i++) {
 							
-						}
-						catch(FileNotFoundException e) {
-							System.out.println("File " + outputTxtFile + " not found.");
-						}
-						catch(IOException e) {
-							System.out.println("File not created");
+							if(args[i].equals("-o")) {
+								options = true;
+							}
+							
+							if(options == true) {
+								outputTxtFile = args[i+1];
+								break;
+							}			
+						}	
+						
+						if(options) {
+							try {
+								File file = new File(outputTxtFile);
+								FileWriter fw = new FileWriter(file.getAbsoluteFile(), true);
+								PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(outputTxtFile, true)));
+								pw.println();
+								pw.println("Server response: " + response);
+								pw.close();
+								
+							}
+							catch(FileNotFoundException e) {
+								System.out.println("File " + outputTxtFile + " not found.");
+							}
+							catch(IOException e) {
+								System.out.println("File not created");
+							}
+							
+							}
+
 						}
 						
-						}
-
+						operation(args);
+					}
+					else {
+						// Check whether 'verbose' option was passed in command arguments
+						CheckOptions(args , response, StatusCode);
 					}
 					
-					operation(args);
-				}
-				else {
-					// Check whether 'verbose' option was passed in command arguments
-					CheckOptions(args , response, StatusCode);
-				}
-				
-				socket.close();
-				inputStream.close();
-				outputStream.close();
-			}
+					socket.close();
+					inputStream.close();
+					outputStream.close();
+			
+		}
+	}
+		
 			catch(Exception e) {
 				System.err.println(e);
 			}
@@ -176,6 +196,7 @@ public class HTTPGet {
 			System.out.println("Please enter valid arguments of the form:\n" + 
 					"httpc (get|post) [-v] (-h \"k:v\")* [-d inline-data] [-f file] URL");
 		}
+		
 	}
 
 	// Check for verbose and options commands (-v, -o)

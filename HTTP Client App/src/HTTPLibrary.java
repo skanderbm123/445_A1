@@ -4,24 +4,26 @@ import java.net.Socket;
 import java.net.URL;
 import java.util.Scanner;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
 public class HTTPLibrary {
 
 	private static File file;
+
+	public static void main(String[] args) throws IOException {
 	
-	public static void main(String[] args) {
-	
+		if(args[0].equals("httpc")){
 		if(args.length > 0) {
 			
 			if(args[1].toLowerCase().equals("get")) {
 				
-				if(args[2].toLowerCase().equals("/") && args.length == 3) {
+				/*if(args[2].toLowerCase().equals("/") && args.length == 3) {
 					File folder = new File(".");
 					getAllFiles(folder,true," ");
 			        }
-				else if(args[2].toLowerCase().contains("/")) {
+				else if(args[2].toLowerCase().contains("/") && args[2].length() > 3) {
 					 String name = args[2].substring(1);
 					 File folder = new File(".");
 					 getAllFiles(folder,false,name);	
@@ -31,10 +33,11 @@ public class HTTPLibrary {
 					else
 					System.out.println(file.getName());
 				}
-			    else {
+			    else {*/
 		 		    HTTPLibrary.GetRequest(args);
-				  }
+				 // }
 				
+
 			}
 			
 			else if (args[1].toLowerCase().equals("post")){
@@ -75,6 +78,9 @@ public class HTTPLibrary {
 			System.out.println("Please enter valid arguments of the form:\n" + 
 					"httpc (get|post) [-v] (-h \"k:v\")* [-d inline-data] [-f file] URL");
 		}
+	} 
+
+
 	}
 	
 	// Method representing the GET operation
