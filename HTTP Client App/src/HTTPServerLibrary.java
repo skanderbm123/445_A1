@@ -8,6 +8,9 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Scanner;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -27,6 +30,7 @@ public class HTTPServerLibrary {
         ServerSocket server = null;
         Socket client = null;
         boolean verbose = false;
+        String path="";
 
         if((args.length)>1 && args[1].equals("help")){
             System.out.println("-v Prints debugging messages.");
@@ -45,6 +49,10 @@ public class HTTPServerLibrary {
                 if(args[i].equals("-v")){
                    verbose=true;
                 }
+                if(args[i].equals("-d")){
+                    path = args[i+1];
+                 }
+
             }
             
             while(flag){
@@ -100,7 +108,7 @@ public class HTTPServerLibrary {
 
                 if(!method.contains("GET")){ 
                     
-                    postOperation(response.toString(),HttpVersion,verbose);
+                    postOperation(response.toString(),HttpVersion,verbose,path);
                  }else {
                     if(fileName.length()==0) {
                         System.out.print(response+"\n");
@@ -146,14 +154,23 @@ public class HTTPServerLibrary {
         }
     }
 
-    private static void postOperation(String response, String HttpVersion,boolean verbose) throws IOException {
+    private static void postOperation(String response, String HttpVersion, boolean verbose, String pathString) throws IOException {
       
         String fileName = response.substring(6, response.indexOf("HTTP")-1);
-        String data = response.substring(response.indexOf("\n",response.indexOf("Host:")),response.length()-1);
-        System.out.println("Eric: " + response);
-
+        File file=null;
+        //String data = response.substring(response.indexOf("\n",response.indexOf("Host:")),response.length()-1);
+        String data = response;
+        
+        if(!(pathString.equals(""))){ 
+            File f = new File(pathString);
+            f.mkdirs();
+        }
+        
         try{ 
-            File file = new File(fileName);
+            if(!(pathString.equals("")))
+                file = new File(pathString+"/"+fileName);
+            else
+                file = new File(fileName);
             if(verbose){
                 System.out.println("Writing into file for POST method...");
             }
