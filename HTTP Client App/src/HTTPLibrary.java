@@ -10,40 +10,17 @@ import java.io.OutputStream;
 
 public class HTTPLibrary {
 
-	private static File file;
-
 	public static void main(String[] args) throws IOException {
 	
 		if(args[0].equals("httpc")){
 		if(args.length > 0) {
 			
 			if(args[1].toLowerCase().equals("get")) {
-				
-				/*if(args[2].toLowerCase().equals("/") && args.length == 3) {
-					File folder = new File(".");
-					getAllFiles(folder,true," ");
-			        }
-				else if(args[2].toLowerCase().contains("/") && args[2].length() > 3) {
-					 String name = args[2].substring(1);
-					 File folder = new File(".");
-					 getAllFiles(folder,false,name);	
-					
-					if(file==null)
-						System.out.println("FILE NOT FOUND");
-					else
-					System.out.println(file.getName());
-				}
-			    else {*/
 		 		    HTTPLibrary.GetRequest(args);
-				 // }
-				
-
 			}
-			
 			else if (args[1].toLowerCase().equals("post")){
 				HTTPLibrary.PostRequest(args);
 			}
-			
 			else {
 				if(args.length == 3 && args[2].equals("post")) {
 					System.out.println("Usage:\n"
@@ -104,40 +81,6 @@ public class HTTPLibrary {
 		
 		httpPost.operation(args);
 		
-	}
-
-	private static void getAllFiles(File folder, boolean OnlyLook ,String name) {
-
-		if(OnlyLook) {
-        File[] filesList = folder.listFiles();
-        for(File f : filesList){
-            if(f.isDirectory())
-                getAllFiles(f,OnlyLook,name);
-            if(f.isFile()){
-                System.out.println(f.getName());
-            }
-         }
-     
-		}
-		
-		if(!OnlyLook) {
-			 File[] filesList = folder.listFiles();
-		        for(File f : filesList){
-		        	
-		            if(f.isDirectory())
-		                getAllFiles(f,OnlyLook,name);
-		      
-		            if(f.isFile()){
-		            	if(name.equalsIgnoreCase(f.getName())) {
-		            		file = new File(f.getPath());
-		            		}
-		            }
-		            
-		         }
-		}
-		
-	}
-
-	
+	}	
 
 }

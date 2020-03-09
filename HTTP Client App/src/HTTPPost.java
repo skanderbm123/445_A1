@@ -33,15 +33,29 @@ public class HTTPPost {
 	}
 	
 	public void operation(String[] args) {
-		
+
+	
+		String fullUrl = url;
+		String fileName = "";
+		String port="80";
+
+		if(url.contains("localhost"))
+			fileName = (url.substring(url.indexOf("/", 16)));
+
+		if(url.contains("localhost"))
+			port=url.substring(url.indexOf(":",14)+1,url.indexOf("/",16));
+
+
 		if(!url.equals("")) {
 			try {				
-				
 				InetAddress ip = null;
-				
+			
 				try {
-				// To get IP address of URL
-				 ip = InetAddress.getByName(new URL(url).getHost());
+					// To get IP address of URL
+					if(url.contains("localhost"))
+						setUrl("http://localhost/");
+					
+					ip = InetAddress.getByName(new URL(url).getHost());
 				
 				}
 				catch (UnknownHostException exception)
@@ -50,8 +64,8 @@ public class HTTPPost {
 		            System.exit(0);
 		        }
 				
-				Socket socket = new Socket(ip, 80);
-				
+				Socket socket = new Socket(ip, Integer.parseInt(port));
+			
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 				
@@ -71,16 +85,16 @@ public class HTTPPost {
 				String ContentFile="";
 				
 				if(data) {
-				InlineData = CheckData(args);
-				body = InlineData;
+					InlineData = CheckData(args);
+					body = InlineData;
 				}
 				
 				if(file) {
-				ContentFile = CheckFile(args);
-				body = ContentFile;
+					ContentFile = CheckFile(args);
+					body = ContentFile;
 				}
 					
-	
+			
 				String[] getHeaders = CheckHeaders(args);
 				
 				String headers = "";
@@ -90,17 +104,25 @@ public class HTTPPost {
 					headers = headers + getHeaders[i] + "\r\n";
 					
 				}
-				
-				
-				String request = "POST /post HTTP/1.0\r\n"
+				String request ="";
+
+				if(!(fullUrl.contains("localhost"))){ 
+
+				 request = "POST /post HTTP/1.0\r\n"
 						+ "Content-Length: " + body.length() + "\r\n"+ "Host: "+ip.getHostName()+"\r\n"+
 						headers+ "\r\n" 
 						+ body;
+				}else{
+
+					request = "POST "+fileName+" HTTP/1.0\r\n"
+					+ "Content-Length: " + body.length() + "\r\n"+ headers+ "Host: "+ip.getHostName()+"\r\n"+body;
 				
-				
+				System.out.println(request);
+				}
 				outputStream.write(request.getBytes());
 				outputStream.flush();
-				
+
+				if(!(fullUrl.contains("localhost"))){ 
 				StringBuilder response = new StringBuilder();
 				
 				int responseData = inputStream.read();
@@ -122,7 +144,7 @@ public class HTTPPost {
 				socket.close();
 				inputStream.close();
 				outputStream.close();
-			}
+			}}
 			catch(Exception e) {
 				System.err.println(e);
 			}

@@ -33,10 +33,13 @@ public class HTTPGet {
 
 		String fullUrl = url;
 		String fileName = "";
+		String port="80";
 
 		if(url.contains("localhost"))
 			fileName = (url.substring(url.indexOf("/", 16)));
 
+		if(url.contains("localhost"))
+			port=url.substring(url.indexOf(":",14)+1,url.indexOf("/",16));
 
 		if(!url.equals("")) {
 			try {				
@@ -71,23 +74,25 @@ public class HTTPGet {
 					
 				}
 
-				Socket socket = new Socket(ip, 80);
-
-				if(url.contains("localhost")){ 
-					setUrl(fileName);
-				}
+				Socket socket = new Socket(ip, Integer.parseInt(port));
+				String request = "GET " + url + " HTTP/1.0\r\n" + headers + "\r\nhost:" + ip.getHostName() + "\r\n\r\n";
+				
 				// Setting up input and output streams
-				String request="";
 				InputStream inputStream = socket.getInputStream();
 				OutputStream outputStream = socket.getOutputStream();
 
-			
-					request = "GET " + url + " HTTP/1.0\r\n" + headers + "\r\nhost:" + ip.getHostName() + "\r\n\r\n";
+
+				if(url.contains("localhost")){ 
+
+					setUrl(fileName);
+						request = "GET " + url + " HTTP/1.0\r\n" + headers;
 					
-					if(url.contains(fileName)) {
+						outputStream.write(request.getBytes());
+						outputStream.flush();
 						System.out.println(request);
-					}
-					else {
+
+				}else{
+				
 					outputStream.write(request.getBytes());
 					outputStream.flush();
 					
@@ -185,9 +190,9 @@ public class HTTPGet {
 					inputStream.close();
 					outputStream.close();
 			
-		}
-	}
 		
+	}
+}
 			catch(Exception e) {
 				System.err.println(e);
 			}
