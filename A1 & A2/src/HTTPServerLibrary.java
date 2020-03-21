@@ -55,7 +55,24 @@ public class HTTPServerLibrary {
 
             }
             
+    
+
             while(flag){
+
+    // Creating server and client sockets
+            try {
+    server = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
+    client = server.accept();
+    
+    if(verbose) {
+        System.out.println("Initializing Server and Client sockets...");
+    }
+}
+catch(Exception e) {
+    
+    System.out.println(e.getMessage());
+}
+
 
                 //userInput = sc.nextLine();
                
@@ -64,19 +81,7 @@ public class HTTPServerLibrary {
                     break;
                 }
                     
-                // Creating server and client sockets
-                try {
-                    server = new ServerSocket(port, 0, InetAddress.getLoopbackAddress());
-                    client = server.accept();
-                    
-                    if(verbose) {
-                        System.out.println("Initializing Server and Client sockets...");
-                    }
-                }
-                catch(Exception e) {
-                    
-                    System.out.println(e.getMessage());
-                }
+                
 
                 Scanner in = new Scanner(new InputStreamReader(client.getInputStream()));
                 
@@ -89,7 +94,7 @@ public class HTTPServerLibrary {
                 String HttpVersion="";
                 String method="";
                 int counter = 0;
-
+                if(in.hasNextLine()){
                 while(in.hasNextLine()){
 
                     String wtv = in.nextLine();
@@ -105,7 +110,7 @@ public class HTTPServerLibrary {
                     if(wtv.equals(""))
                         break;
                 }
-
+                String finalAnswer="";
                 if(!method.contains("GET")){ 
                     
                     postOperation(response.toString(),HttpVersion,verbose,path);
@@ -121,23 +126,34 @@ public class HTTPServerLibrary {
                         getAllFiles(folder,false,fileName);	
                         
                         if(file==null){			
+                              finalAnswer=HttpVersion + " 404 Not Found\n";
                                 System.out.println(HttpVersion + " 404 Not Found");
                                 System.out.println(response);
                         }else if(!(file.canRead())){ 
+                            finalAnswer=HttpVersion + " 403 Forbidden\n";
                             System.out.println(HttpVersion + " 403 Forbidden");
                             System.out.println(response);
                             file=null;
                         }else{ 
                             System.out.println(HttpVersion + " 200 OK");
+                            finalAnswer=HttpVersion + " 200 OK\n";
                         }
                    }
+                 
+                    OutputStream outputStream = client.getOutputStream();
 
-                
                     if(file!=null){ 
+                      
                         System.out.print(response);
                         String outputFile = readFile(file);
-                        System.out.println("Content-Length: "+numberOfCharacters+"\n");
+                        System.out.print("Content-Length: "+numberOfCharacters+"\n");
                         System.out.println(outputFile);
+
+                        finalAnswer=finalAnswer+response.toString().trim()+"\nContent-Length: "+numberOfCharacters+"\n"+outputFile+"\r\n";
+                       
+                        outputStream.write(finalAnswer.getBytes());
+                     	
+                        
                     }
                     
                     numberOfCharacters=0;
@@ -150,7 +166,8 @@ public class HTTPServerLibrary {
                 }
                 client.close();
                 server.close();
-            }
+            
+            }}
         }
     }
 

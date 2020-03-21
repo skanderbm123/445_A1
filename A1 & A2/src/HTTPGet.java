@@ -1,10 +1,12 @@
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.Scanner;
 import java.io.PrintWriter;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -85,11 +87,26 @@ public class HTTPGet {
 				if(url.contains("localhost")){ 
 
 					setUrl(fileName);
-						request = "GET " + url + " HTTP/1.0\r\n" + headers;
+						request = "GET " + url + " HTTP/1.0\r\n" + headers+"\r\n\r\n";
 					
 						outputStream.write(request.getBytes());
-						outputStream.flush();
-						System.out.println(request);
+
+						StringBuilder response2 = new StringBuilder();
+	
+						Scanner in = new Scanner(new InputStreamReader(socket.getInputStream()));
+
+						if(in.hasNextLine()){
+						while(in.hasNextLine()){
+		
+							String wtv = in.nextLine();
+							response2.append(wtv+"\n");
+
+							if(wtv.equals(""))
+								break;
+						}}
+
+						System.out.println(response2.toString());
+						
 
 				}else{
 				
@@ -185,12 +202,8 @@ public class HTTPGet {
 						// Check whether 'verbose' option was passed in command arguments
 						CheckOptions(args , response, StatusCode);
 					}
-					
-					socket.close();
-					inputStream.close();
-					outputStream.close();
-			
-		
+				
+
 	}
 }
 			catch(Exception e) {
