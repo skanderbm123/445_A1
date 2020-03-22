@@ -129,11 +129,13 @@ catch(Exception e) {
                               finalAnswer=HttpVersion + " 404 Not Found\n";
                                 System.out.println(HttpVersion + " 404 Not Found");
                                 System.out.println(response);
+                                finalAnswer=finalAnswer+response;
                         }else if(!(file.canRead())){ 
                             finalAnswer=HttpVersion + " 403 Forbidden\n";
                             System.out.println(HttpVersion + " 403 Forbidden");
                             System.out.println(response);
                             file=null;
+                            finalAnswer=finalAnswer+response;
                         }else{ 
                             System.out.println(HttpVersion + " 200 OK");
                             finalAnswer=HttpVersion + " 200 OK\n";
@@ -151,11 +153,9 @@ catch(Exception e) {
 
                         finalAnswer=finalAnswer+response.toString().trim()+"\nContent-Length: "+numberOfCharacters+"\n"+outputFile+"\r\n";
                        
-                        outputStream.write(finalAnswer.getBytes());
-                     	
                         
                     }
-                    
+                    outputStream.write(finalAnswer.getBytes());
                     numberOfCharacters=0;
                     System.out.println();
                     System.out.println();
