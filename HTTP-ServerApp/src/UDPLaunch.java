@@ -46,10 +46,5 @@ public class UDPLaunch {
 
 	}
 	
-	//TODO: mimic TCP handshake!
-
-	
-	
-	
 	
 }

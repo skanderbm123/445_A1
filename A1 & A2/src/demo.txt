@@ -1,6 +1,0 @@
-POST /demo.txt HTTP/1.0
-Content-Length: 26
-Context-type:application/json
-Host: localhost
-Hello demo 10th march 2020
-

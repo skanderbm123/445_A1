@@ -54,13 +54,16 @@ public class UDPServer {
 			
 			for (; ; ) {
 				buf.clear();
-				SocketAddress router = channel.receive(buf);
-
+				SocketAddress router =  new InetSocketAddress("localhost",3000);
+				channel.receive(buf);
+			
+				
 				// Parse a packet from the received raw data.
 				buf.flip();
 				Packet packet = Packet.fromBuffer(buf);
 				buf.flip();
 
+				if(packet.getType()==0) {
 				payload= new String(packet.getPayload(), UTF_8);
 				String[] args = payload.split("\\s+");
 				
@@ -79,8 +82,9 @@ public class UDPServer {
 				}
 	            
 	            logger.info("Packet: {}", packet);
-	            logger.info("Payload: {}", payload);
 	            logger.info("Router: {}", router);
+	            logger.info("Payload:");
+	            System.out.println(payload);
 	
 	            // Send the response to the router not the client.
 	            // The peer address of the packet is the address of the client already.
@@ -90,10 +94,29 @@ public class UDPServer {
 	                    .setPayload(payload.getBytes())
 	                    .create();
 	            channel.send(resp.toBuffer(), router);
+				}else if(packet.getType()==1) {
+					threeWayHandShake(packet,channel,router,buf);
+				}else if(packet.getType()==3) {
+					threeWayHandShake(packet,channel,router,buf);
+				}
 	        }
 	    }
 	}
 	
+	private void threeWayHandShake(Packet packet, DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
+		if(packet.getType()==1) {
+		  	logger.info("Server : Packet SYN received");
+	     
+	        String connection = "Server : synchronization acknowledged";
+	        logger.info(connection);
+	        Packet response = packet.toBuilder().setSequenceNumber(packet.getSequenceNumber() + 1).setType(2).setPayload(connection.getBytes()).create();
+	        channel.send(response.toBuffer(), router);
+	    	logger.info("Server : Packet SYN-ACK packet has been sent out");
+			}else if(packet.getType()==3) {
+			logger.info("Message : {}",new String(packet.getPayload(),UTF_8));
+			}
+	}
+
 	// UDP Server POST operation
 	private static void postRequest(String[] args) throws IOException {
 		String result = "";
@@ -173,22 +196,18 @@ public class UDPServer {
 			// return all files in directory
 			 for(int i = 0; i < args.length; i++) {
 		        	if(args[i].contains("HTTP")) {
-		        		HTTPVersion = args[i]+"\n";
+		        		HTTPVersion = args[i];
 		        	}else if (args[i].equals("-h")) {
 		        		headers = headers + args[i+1]+"\n";
 		        	}
 		        }
 			 
-		      result = "GET "+HTTPVersion+ headers+readFile(file); 
+		      result = "GET "+HTTPVersion+" 200 OK \r\n"+headers+readFile(file); 
 		      payload = result;
 			
 			
 		}else {
 			// return content of fileName
-			
-			
-			
-			
 			payload = "404 Not Found";
 		}
 	}	
