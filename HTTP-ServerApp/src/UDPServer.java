@@ -23,11 +23,11 @@ public class UDPServer {
 
     private static final Logger logger = LoggerFactory.getLogger(UDPServer.class);
     private static File file;
-    private static File folder = new File("../.");
+    private static File folder = new File("./.");
     private static int numberOfCharacters = 0;
-    private static String payload;
+    private static String payload = "";
     private static String pathString = "";
- 
+    private static int count=0;
     
     public static void main(String[] args) throws IOException {
        OptionParser parser = new OptionParser();
@@ -62,9 +62,9 @@ public class UDPServer {
 				buf.flip();
 				Packet packet = Packet.fromBuffer(buf);
 				buf.flip();
-
-				if(packet.getType()==0) {
-				payload= new String(packet.getPayload(), UTF_8);
+				
+				if(packet.getType()==Packet.DATA) {
+				payload= payload+new String(packet.getPayload(), UTF_8);
 				String[] args = payload.split("\\s+");
 				
 				logger.info("Method used: {}", args[0]);
@@ -94,9 +94,97 @@ public class UDPServer {
 	                    .setPayload(payload.getBytes())
 	                    .create();
 	            channel.send(resp.toBuffer(), router);
-				}else if(packet.getType()==1) {
+	            
+	            payload="";
+	            
+				}else if(packet.getType()==Packet.DATAPART) {
+					
+					payload= payload+new String(packet.getPayload(), UTF_8);
+					
+					if(payload.contains("Message separated in")) {
+						count=Integer.parseInt(payload.substring(payload.length()-1));
+					
+						payload="";
+					}
+					else {
+						
+					for(int i =0;i<count-1;i++) {
+						
+						 	/*Packet resp = packet.toBuilder()
+				                    .setPayload(("Message received").getBytes())
+				                    .create();
+				            channel.send(resp.toBuffer(), router);
+				            */
+				            
+				            //retrieve next packet
+				            buf.clear();
+							router =  new InetSocketAddress("localhost",3000);
+							channel.receive(buf);
+						
+							
+							// Parse a packet from the received raw data.
+							buf.flip();
+						    packet = Packet.fromBuffer(buf);
+							buf.flip();
+				            
+				            payload=payload +new String(packet.getPayload(), UTF_8);
+				          
+				            
+					}
+			
+					String[] args = payload.split("\\s+");
+					
+					logger.info("Method used: {}", args[0]);
+					
+					System.out.println();
+					
+					if(args[0].contains("get")) {
+						// Perform GET operation
+						getRequest(args);
+					}
+					else if(args[0].contains("post")) {
+						// Perform POST operation
+						postRequest(args);
+					}
+					
+					    logger.info("Packet: {}", packet);
+			            logger.info("Router: {}", router);
+			            logger.info("Payload:");
+			            System.out.println(payload);
+			
+			            //retrieve next packet
+			            buf.clear();
+						router =  new InetSocketAddress("localhost",3000);
+						channel.receive(buf);
+					
+						
+						// Parse a packet from the received raw data.
+						buf.flip();
+					    packet = Packet.fromBuffer(buf);
+						buf.flip();
+						
+						
+			
+			            
+			            // Send the response to the router not the client.
+			            // The peer address of the packet is the address of the client already.
+			            // We can use toBuilder to copy properties of the current packet.
+			            // This demonstrate how to create a new packet from an existing packet.
+						String verify = new String(packet.getPayload(), UTF_8);
+						if(verify.contains("Request sent, waiting for response")) {
+					
+			            Packet resp = packet.toBuilder()
+			                    .setPayload(payload.getBytes())
+			                    .create();
+			            channel.send(resp.toBuffer(), router);
+						
+			            payload="";
+						}
+					}
+				}
+				 else if(packet.getType()==Packet.SYN) {
 					threeWayHandShake(packet,channel,router,buf);
-				}else if(packet.getType()==3) {
+				}else if(packet.getType()==Packet.ACK) {
 					threeWayHandShake(packet,channel,router,buf);
 				}
 	        }
@@ -104,7 +192,7 @@ public class UDPServer {
 	}
 	
 	private void threeWayHandShake(Packet packet, DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
-		if(packet.getType()==1) {
+		if(packet.getType()==Packet.SYN) {
 		  	logger.info("Server : Packet SYN received");
 	     
 	        String connection = "Server : synchronization acknowledged";
@@ -123,6 +211,7 @@ public class UDPServer {
 		String headers = "";
 		String url = args[args.length-1];  
         String fileName = getName(url);
+        fileName = fileName.trim();
         String HTTPVersion = "";
         file = null;
         String data = "";
@@ -190,31 +279,63 @@ public class UDPServer {
 	    String HTTPVersion = "";
 	    String data = "";
 		String fileName = getName(args[args.length-1]);
-		getAllFiles(folder,fileName);
+        fileName = fileName.trim();
 		
-		if(!(file == null)) {
-			// return all files in directory
-			 for(int i = 0; i < args.length; i++) {
-		        	if(args[i].contains("HTTP")) {
-		        		HTTPVersion = args[i];
-		        	}else if (args[i].equals("-h")) {
-		        		headers = headers + args[i+1]+"\n";
-		        	}
-		        }
-			 
-		      result = "GET "+HTTPVersion+" 200 OK \r\n"+headers+readFile(file); 
-		      payload = result;
+		 for(int i = 0; i < args.length; i++) {
+	        	if(args[i].contains("HTTP")) {
+	        		HTTPVersion = args[i];
+	        	}else if (args[i].equals("-h")) {
+	        		headers = headers + args[i+1]+"\n";
+	        	}
+	        }
+		
+		if(fileName.length()>0) {
+			getAllFiles(folder,fileName);
+
+			if(!(file == null)) {
+				// return all files in directory
+			      result = "GET "+HTTPVersion+" 200 OK \r\n"+headers+readFile(file); 
+			      payload = result;
+				
+				
+			}else {
+				// return content of fileName
+				payload = "GET "+HTTPVersion+" 404 Not Found \r\n"+headers;
+			}
 			
 			
+	
 		}else {
-			// return content of fileName
-			payload = "404 Not Found";
+			  result = "GET "+HTTPVersion+" 200 OK \r\n"+headers+getAllPath(folder,fileName);; 
+		      payload = result;
 		}
+		file=null;
 	}	
 	
+	private static String getAllPath(File folder, String fileName) {
+		
+		  File[] filesList = folder.listFiles();
+		  String response="";
+	        fileName = fileName.trim();
+          for(File f : filesList){
+              if(f.isDirectory()) {
+            	
+            	  response = response+f.getName()+"\n";
+                  getAllFiles(f,fileName);
+              }if(f.isFile()){
+            	  response = response+f.getName()+"\n";
+            	
+              }
+          	}
+          return response;
+          }
+      
+	
+
 	private static void getAllFiles(File folder , String name) {
 		
 			File[] filesList = folder.listFiles();
+			name = name.trim();
 			
 		    for(File f : filesList){
 		        if(f.isDirectory())
@@ -222,6 +343,7 @@ public class UDPServer {
 		      
 		        if(f.isFile()){
 		            if(name.equalsIgnoreCase(f.getName())) {
+		            	
 		            	file = new File(f.getPath());
 		            }
 		        }

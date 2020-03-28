@@ -15,11 +15,12 @@ public class Packet {
 	public static final int SYN   = 1;
 	public static final int SYN_ACK = 2;
 	public static final int ACK = 3;
-	
+	public static final int DATAPART = 4;
+	public static final int FIN = 5;
 	
     public static final int MIN_LEN = 11;
     public static final int MAX_LEN = 11 + 1024;
-    public static final int MAX_PAYLOAD = 1024 - 11;
+    public static final int MAX_PAYLOAD = 19;
     
     private final int type;
     private final long sequenceNumber;

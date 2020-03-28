@@ -18,7 +18,7 @@ public class UDPLaunch {
 		logger.info("Running client for request of type: {}", args[1]);
 		logger.info("Url of the request: {}", args[args.length - 1]);
 		
-		  if(args[0].equals("UDPLaunch")) {
+		  if(args[0].equals("https")) {
 	            for(int i = 0 ; i < args.length ; i++) {
 	                if(args[i].equals("--router-host")) {
 	                    routerHost = args[i+1];
@@ -32,7 +32,7 @@ public class UDPLaunch {
 	                else if(args[i].equals("--server-port")) {
 	                    serverPort = Integer.parseInt(args[i+1]);
 	                }
-
+	                
 	            }
 	            
 		  }

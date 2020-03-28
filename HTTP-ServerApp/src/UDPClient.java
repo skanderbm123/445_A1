@@ -12,6 +12,7 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import java.lang.Math;
 
 import static java.nio.channels.SelectionKey.OP_READ;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -24,60 +25,155 @@ public class UDPClient {
 
     public static final Logger logger = LoggerFactory.getLogger(UDPClient.class);
     public static boolean handshake = false;
-    
+    public static ArrayList<Packet> arrayOfSplitPacket = new ArrayList<Packet>();
+	
+    /**
+     * @param routerAddr
+     * @param serverAddr
+     * @param args
+     * @throws IOException
+     */
     public static void runClient(SocketAddress routerAddr, InetSocketAddress serverAddr , String[] args) throws IOException {
         try(DatagramChannel channel = DatagramChannel.open()){
             String msg =  createMessage(args);
             long sequenceNumber = threeWayHandShake(channel,serverAddr,routerAddr);
             
             if(handshake) {
-            if(msg.getBytes().length <= Packet.MAX_PAYLOAD) {
-            
-            Packet p = new Packet.Builder()
-                    .setType(0)
-                    .setSequenceNumber(sequenceNumber+1)
-                    .setPortNumber(serverAddr.getPort())
-                    .setPeerAddress(serverAddr.getAddress())
-                    .setPayload(msg.getBytes())
-                    .create();
-            channel.send(p.toBuffer(), routerAddr);
+	            if(msg.getBytes().length <= Packet.MAX_PAYLOAD) {
+	            
+	            Packet p = new Packet.Builder()
+	                    .setType(0)
+	                    .setSequenceNumber(sequenceNumber+1)
+	                    .setPortNumber(serverAddr.getPort())
+	                    .setPeerAddress(serverAddr.getAddress())
+	                    .setPayload(msg.getBytes())
+	                    .create();
+	            channel.send(p.toBuffer(), routerAddr);
+	
+	            
+	            
+	            logger.info("Sending \"{}\" to router at {}", msg, routerAddr);
+	            wait(channel,routerAddr,p);
+	
+	            // We just want a single response.
+	            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+	            SocketAddress router = channel.receive(buf);
+	            buf.flip();
+	            Packet resp = Packet.fromBuffer(buf);
+	            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+	            logger.info("Packet: {}", resp);
+	            logger.info("Router: {}", router);
+	            logger.info("Payload:");
+	            System.out.println(payload);
+	         
+	            
+	            //Send FIN to end connection
+	            }
+	            else {
+	            	int count=0;
+	      
+	               	 count = (int) Math.ceil((double)msg.length()/(double)Packet.MAX_PAYLOAD);
+	         
+		            Packet p = new Packet.Builder()
+		                    .setType(4)
+		                    .setSequenceNumber(sequenceNumber)
+		                    .setPortNumber(serverAddr.getPort())
+		                    .setPeerAddress(serverAddr.getAddress())
+		                    .setPayload(msg.getBytes())
+		                    .create();
+		         
+		          
+	            	dividePacket(p);
+	            	ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+	            	String result ="";
+	            	
+	            	Packet packetNumber = new Packet.Builder()
+		                    .setType(4)
+		                    .setSequenceNumber(sequenceNumber)
+		                    .setPortNumber(serverAddr.getPort())
+		                    .setPeerAddress(serverAddr.getAddress())
+		                    .setPayload(("Message separated in "+count).getBytes())
+		                    .create();
+	            	
+	            	logger.info("Sending number of packet: {}", count);
+	 	            channel.send(packetNumber.toBuffer(), routerAddr);
+	 	            
+	            	for(int i = 0; i < arrayOfSplitPacket.size(); i++) {
+	            		
+	            		channel.send(arrayOfSplitPacket.get(i).toBuffer(), routerAddr);
+	            		// Client starts timer and awaits for response, if timer expires, packet is resent
+	                   /* wait(channel,routerAddr,arrayOfSplitPacket.get(i));
+	            	
+		  	            SocketAddress router = channel.receive(buf);
+		  	            buf.flip();
+		  	            Packet resp = Packet.fromBuffer(buf);
+		 
+		  	            logger.info("Packet: {}", resp);
+		  	            logger.info("Router: {}", router);
+		  	            logger.info("Payload:");
 
-            
-            logger.info("Sending \"{}\" to router at {}", msg, routerAddr);
-
-            // Try to receive a packet within timeout.
-            channel.configureBlocking(false);
-            Selector selector = Selector.open();
-            channel.register(selector, OP_READ);
-            logger.info("Waiting for the response");
-            selector.select(5000);
-
-            Set<SelectionKey> keys = selector.selectedKeys();
-            if(keys.isEmpty()){
-                logger.error("No response after timeout");
-                return;
+			            System.out.println("Count "+i+" "+new String(resp.getPayload(), StandardCharsets.UTF_8));
+ */
+	            	}
+	            	    Packet wait = new Packet.Builder()
+			                    .setType(4)
+			                    .setSequenceNumber(sequenceNumber)
+			                    .setPortNumber(serverAddr.getPort())
+			                    .setPeerAddress(serverAddr.getAddress())
+			                    .setPayload(("Request sent, waiting for response").getBytes())
+			                    .create();
+	            	    logger.info("Request sent, waiting for response");
+	            	    
+	            		channel.send(wait.toBuffer(), routerAddr);
+	            		// Client starts timer and awaits for response, if timer expires, packet is resent
+	                    wait(channel,routerAddr,wait);
+	            	
+	            	
+		                SocketAddress router = channel.receive(buf);
+		  	            buf.flip();
+		  	            Packet resp = Packet.fromBuffer(buf);
+		 
+		  	            logger.info("Packet: {}", resp);
+		  	            logger.info("Router: {}", router);
+		  	            logger.info("Payload:");
+	
+			            System.out.println(new String(resp.getPayload(), StandardCharsets.UTF_8));
+	
+			            
+				
+		  	          
+	            	    
+	            	    arrayOfSplitPacket.clear();
+	            }
             }
-
-            // We just want a single response.
-            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
-            SocketAddress router = channel.receive(buf);
-            buf.flip();
-            Packet resp = Packet.fromBuffer(buf);
-            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
-            logger.info("Packet: {}", resp);
-            logger.info("Router: {}", router);
-            logger.info("Payload:");
-            System.out.println(payload);
-            keys.clear();
-            
-            //Send FIN to end connection
-            }
-            else {
-            	// TODO: divide info into Packets
-            }
-        }
         }
     }
+    
+    private static void dividePacket(Packet p) {
+    	long sequenceNumber=0;
+       
+    	Packet p2;
+    	if(p.getPayload().length < p.MAX_PAYLOAD) {
+	    	sequenceNumber = p.getSequenceNumber();
+	    	sequenceNumber ++;
+	    	p2 = new Packet(p.getType(), sequenceNumber, p.getPeerAddress(), p.getPeerPort(), Arrays.copyOf(p.getPayload(), p.MAX_PAYLOAD));
+	    
+	    	arrayOfSplitPacket.add(p2);
+    	}
+    	else {
+	    	sequenceNumber = p.getSequenceNumber();
+	        sequenceNumber ++;
+	        p2 = new Packet(p.getType(),  sequenceNumber, p.getPeerAddress(), p.getPeerPort(), Arrays.copyOf(p.getPayload(), p.MAX_PAYLOAD));
+	       
+	        arrayOfSplitPacket.add(p2);
+	    	sequenceNumber ++;
+	    	p2 = new Packet(p.getType(),  sequenceNumber, p.getPeerAddress(), p.getPeerPort(), Arrays.copyOfRange(p.getPayload(),p.MAX_PAYLOAD, p.getPayload().length));
+	    
+	    	dividePacket(p2);
+    	}
+    
+    }
+    
 
 	private static String createMessage(String[] args) {
 		String message=args[1]+" "+args[2]+" ";
@@ -98,7 +194,7 @@ public class UDPClient {
 	
 	
 	
-	  private static long threeWayHandShake(DatagramChannel datagramChannel,InetSocketAddress serverAddress, SocketAddress routerAddr) throws IOException {
+	private static long threeWayHandShake(DatagramChannel datagramChannel,InetSocketAddress serverAddress, SocketAddress routerAddr) throws IOException {
 
 	        String connectionString = "Client : Asking Server for connection #SYN";
 	        
@@ -113,7 +209,8 @@ public class UDPClient {
 	        
 	        logger.info("Client : Packet SYN has been sent out");
 		      
-	        //timer(datagramChannel,test);
+	        wait(datagramChannel,routerAddr,connect);
+
 
 
 	        ByteBuffer byteBuffer = ByteBuffer.allocate(Packet.MAX_LEN);
@@ -127,7 +224,10 @@ public class UDPClient {
 	        logger.info("Message : {} " , new String(packet.getPayload(),UTF_8));
 	   
 	        
-	        if(packet.getType()==2) {
+	        if(packet.getType()==Packet.SYN_ACK) {
+	        	logger.info("Connection AWK by client, Three-way handshake is complete");
+	        	logger.info("Going forward with request");
+	     	   
 	        	connect = new Packet.Builder()
 		                .setType(3) // Send AWK and will send a request afterward
 		                .setSequenceNumber(awkSeqNumber+1)
@@ -136,17 +236,35 @@ public class UDPClient {
 		                .setPayload(connectionString.getBytes())
 		                .create();
 		        datagramChannel.send(connect.toBuffer(), routerAddr);
+		        
+
 	        }
 	        
-	        logger.info("Now that three-way handshake is complete, request will be sent");
+	     
 	        handshake = true;
 	        return connect.getSequenceNumber();
 	    }
-	}
 	
-	
-	
-	
+	  
+	private static void wait(DatagramChannel channel,SocketAddress routerAddr,Packet packet) throws IOException {
+		    // Try to receive a packet within timeout.
+			channel.configureBlocking(false);
+		    Selector selector = Selector.open();
+		    channel.register(selector, OP_READ);
+		    selector.select(5000);
+		
+		    Set<SelectionKey> keys = selector.selectedKeys();
+		    //resend packet to router after x ms
+		    if (keys.isEmpty()) {
+		        logger.info("No answer from server , sending again Message : {}",new String(packet.getPayload(),UTF_8));
+		    	channel.send(packet.toBuffer(), routerAddr);
+		    	wait(channel,routerAddr,packet);
+		    }
+		    keys.clear();
+		    return;
+			}
+		}
+
 	
 	
 	
