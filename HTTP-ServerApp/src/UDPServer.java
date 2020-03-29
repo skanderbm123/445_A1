@@ -99,17 +99,22 @@ public class UDPServer {
 	            
 				}else if(packet.getType()==Packet.DATAPART) {
 					
-					payload= payload+new String(packet.getPayload(), UTF_8);
+					if(count==0) {
+						payload= new String(packet.getPayload(), UTF_8);
+					}
 					
 					if(payload.contains("Message separated in")) {
 						count=Integer.parseInt(payload.substring(payload.length()-1));
-					
 						payload="";
+
 					}
 					else {
+					
+						String[] messages = new String[count];
 						
 					for(int i =0;i<count-1;i++) {
-						
+							messages[i]="";
+							messages[i]=new String(packet.getPayload(), UTF_8);
 						 	/*Packet resp = packet.toBuilder()
 				                    .setPayload(("Message received").getBytes())
 				                    .create();
@@ -117,21 +122,26 @@ public class UDPServer {
 				            */
 				            
 				            //retrieve next packet
+					
 				            buf.clear();
 							router =  new InetSocketAddress("localhost",3000);
 							channel.receive(buf);
 						
-							
 							// Parse a packet from the received raw data.
 							buf.flip();
 						    packet = Packet.fromBuffer(buf);
 							buf.flip();
-				            
-				            payload=payload +new String(packet.getPayload(), UTF_8);
-				          
-				            
+							
+          
 					}
 			
+					
+					messages[count-1]=new String(packet.getPayload(), UTF_8);
+					
+					missingPacket(messages,packet,channel,router,buf);	
+					
+					payload = String.join("", messages);
+				
 					String[] args = payload.split("\\s+");
 					
 					logger.info("Method used: {}", args[0]);
@@ -179,6 +189,9 @@ public class UDPServer {
 			            channel.send(resp.toBuffer(), router);
 						
 			            payload="";
+			        	file=null;
+			        	count=0;
+			        	messages=null;
 						}
 					}
 				}
@@ -191,6 +204,38 @@ public class UDPServer {
 	    }
 	}
 	
+	private void missingPacket(String[] messages, Packet packet, DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
+		boolean allFilled=true;
+		
+		for(int i=0;i<messages.length;i++) {
+			if(messages[i].equalsIgnoreCase("")) {
+				Packet resp = packet.toBuilder()
+	                    .setPayload(("Missing packet "+i).getBytes())
+	                    .create();
+	            channel.send(resp.toBuffer(), router);
+	            
+	            buf.clear();
+				router =  new InetSocketAddress("localhost",3000);
+				channel.receive(buf);
+			
+				// Parse a packet from the received raw data.
+				buf.flip();
+			    packet = Packet.fromBuffer(buf);
+				buf.flip();
+				
+				messages[i]=new String(packet.getPayload(), UTF_8);
+	            
+	            allFilled=false;
+			}
+		}
+		
+		if(!allFilled)
+		missingPacket(messages,packet,channel,router,buf);
+		
+		
+		return;
+	}
+
 	private void threeWayHandShake(Packet packet, DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
 		if(packet.getType()==Packet.SYN) {
 		  	logger.info("Server : Packet SYN received");

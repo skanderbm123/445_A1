@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import java.nio.charset.StandardCharsets;
-import java.util.Set;
 import java.lang.Math;
 
 import static java.nio.channels.SelectionKey.OP_READ;
@@ -85,7 +84,7 @@ public class UDPClient {
 		          
 	            	dividePacket(p);
 	            	ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
-	            	String result ="";
+	            	
 	            	
 	            	Packet packetNumber = new Packet.Builder()
 		                    .setType(4)
@@ -101,20 +100,15 @@ public class UDPClient {
 	            	for(int i = 0; i < arrayOfSplitPacket.size(); i++) {
 	            		
 	            		channel.send(arrayOfSplitPacket.get(i).toBuffer(), routerAddr);
-	            		// Client starts timer and awaits for response, if timer expires, packet is resent
-	                   /* wait(channel,routerAddr,arrayOfSplitPacket.get(i));
-	            	
-		  	            SocketAddress router = channel.receive(buf);
-		  	            buf.flip();
-		  	            Packet resp = Packet.fromBuffer(buf);
-		 
-		  	            logger.info("Packet: {}", resp);
-		  	            logger.info("Router: {}", router);
-		  	            logger.info("Payload:");
 
-			            System.out.println("Count "+i+" "+new String(resp.getPayload(), StandardCharsets.UTF_8));
- */
 	            	}
+	            	
+	            	
+	            		missingPackets(channel,routerAddr);
+	            	
+	            	
+	            	
+	            	
 	            	    Packet wait = new Packet.Builder()
 			                    .setType(4)
 			                    .setSequenceNumber(sequenceNumber)
@@ -139,17 +133,62 @@ public class UDPClient {
 	
 			            System.out.println(new String(resp.getPayload(), StandardCharsets.UTF_8));
 	
-			            
-				
-		  	          
-	            	    
+
 	            	    arrayOfSplitPacket.clear();
 	            }
             }
         }
     }
     
-    private static void dividePacket(Packet p) {
+    private static void missingPackets(DatagramChannel channel,SocketAddress routerAddr) throws IOException {
+    	
+    	   boolean NoMissing = wait(channel,routerAddr);
+ 
+           if(NoMissing) {
+        	   return;
+           }
+           else {
+        	   	
+        	   ByteBuffer bufMissingPacket = ByteBuffer.allocate(Packet.MAX_LEN);
+        	   SocketAddress router = channel.receive(bufMissingPacket);
+        	   bufMissingPacket.flip();
+               Packet resp = Packet.fromBuffer(bufMissingPacket);
+               String payload =new String(resp.getPayload(), StandardCharsets.UTF_8);
+         
+               logger.info("Packet: {}", resp);
+               logger.info("Router: {}", router);
+               logger.info("Payload: {}",payload);
+               
+        	   int counter=Integer.parseInt(payload.substring(payload.length()-1));
+        	   channel.send(arrayOfSplitPacket.get(counter).toBuffer(), routerAddr);
+        	   
+        	   missingPackets(channel,routerAddr);
+        	   
+           }
+    	
+    	
+		
+	}
+
+	private static boolean wait(DatagramChannel channel, SocketAddress routerAddr) throws IOException {
+		 // Try to receive a packet within timeout.
+		channel.configureBlocking(false);
+	    Selector selector = Selector.open();
+	    channel.register(selector, OP_READ);
+	    selector.select(5000); //5000 ms of wait
+	
+	    Set<SelectionKey> keys = selector.selectedKeys();
+	    //resend packet to router after x ms
+	    if (keys.isEmpty()) {
+	      return true;
+	    }
+	    keys.clear();
+	    return false;
+		}
+		
+	
+
+	private static void dividePacket(Packet p) {
     	long sequenceNumber=0;
        
     	Packet p2;

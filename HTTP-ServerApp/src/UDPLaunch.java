@@ -42,6 +42,7 @@ public class UDPLaunch {
 		  	//run client 
 		        SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);
 	            InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
+	            
 	            UDPClient.runClient(routerAddress, serverAddress, args);
 
 	}
