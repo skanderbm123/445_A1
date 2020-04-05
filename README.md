@@ -12,10 +12,18 @@ Our code for this assignment was spread out into 3 classes:
  3. `UDPServer.java` contains all operations necessary to listen for Client requests and serve them by sending back different responses depending on the type of request.
  
 ## Running A3
- 1. Start the client side by running the following command: `httpc (get|post) [-v] (-h "k:v")* [-d inline-data] [-f file] URL`
+ 1. Run the `router_x64.exe` application
  2. Start the server side by running the following command: `httpfs [-v] [-p PORT] [-d PATH-TO-DIR]`
+ 3. Start the client side by running the following command: `httpc (get|post) [-v] (-h "k:v")* [-d inline-data] [-f file] URL`
+ 
  
 ## Various Client commands tested
- - `httpc get  HTTP/1.0 http://localhost:8007/eric.txt`
- - `httpc get  HTTP/1.0 -h User-Agent:Concordia http://localhost:8007/eric.txt`
- - `httpc get  HTTP/1.0 -v -h User-Agent:Concordia http://localhost:8007/eric.txt`
+ - `httpc get HTTP/1.0 http://localhost:8007/eric.txt`
+ - `httpc get HTTP/1.0 -h User-Agent:Concordia http://localhost:8007/eric.txt`
+ - `httpc get HTTP/1.0 -v -h User-Agent:Concordia http://localhost:8007/eric.txt`
+ 
+## Various Server commands tested
+ - `httpfs`
+ - `httpfs get /`
+ - `httpfs get /test`
+ - `httpfs post /skander`
