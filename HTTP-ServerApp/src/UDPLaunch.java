@@ -38,9 +38,6 @@ public class UDPLaunch {
 	                
 	            }
 	            
-		
-		  
-		  
 		  
 		  	//run client 
 		        SocketAddress routerAddress = new InetSocketAddress(routerHost, routerPort);

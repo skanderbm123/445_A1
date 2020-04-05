@@ -14,8 +14,16 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.DatagramChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Scanner;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+import static java.nio.channels.SelectionKey.OP_READ;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
 
@@ -29,7 +37,10 @@ public class UDPServer {
     private static String pathString = "";
     private static int count=0;
     private static boolean verbose=false;
-    public static void main(String[] args) throws IOException {
+    public static ArrayList<Packet> arrayOfSplitPacket = new ArrayList<Packet>();
+    public static int windowSize = 3;
+    
+    public static void main(String[] args) throws IOException, InterruptedException {
     	
     	if((args.length)>1 && args[1].equalsIgnoreCase("help")) {
     		System.out.println("-v Prints debugging messages.");
@@ -69,7 +80,7 @@ public class UDPServer {
     	 
     }
 
-	private void listenAndServe(int port) throws IOException {
+	private void listenAndServe(int port) throws IOException, InterruptedException {
 
 		try (DatagramChannel channel = DatagramChannel.open()) {
 			channel.bind(new InetSocketAddress(port));
@@ -82,13 +93,13 @@ public class UDPServer {
 				logger.info("Verbose: {}", "Initializing Server Socket and Allocating space to ByteBuffer...");
               
             }
+		
 			
 			
 			for (; ; ) {
 				buf.clear();
-				SocketAddress router =  new InetSocketAddress("localhost",3000);
-				channel.receive(buf);
-			
+				SocketAddress router = channel.receive(buf);
+				
 
 				if(verbose) {
 					logger.info("Verbose: {}", "Receiving packet");
@@ -101,50 +112,52 @@ public class UDPServer {
 				buf.flip();
 				
 				if(packet.getType()==Packet.DATA) {
-				payload= payload+new String(packet.getPayload(), UTF_8);
-				String[] args = payload.split("\\s+");
-				
-				logger.info("Method used: {}", args[0]);
-				
-				if(verbose) {
-					logger.info("Verbose: {}", "Parsing the payload to see which method the server should do");       
-	            }
-				
-				
-				if(args[0].contains("get")) {
-					// Perform GET operation
-					getRequest(args);
+					payload= payload+new String(packet.getPayload(), UTF_8);
+					String[] args = payload.split("\\s+");
+					
+					logger.info("Method used: {}", args[0]);
+					
+					if(verbose) {
+						logger.info("Verbose: {}", "Parsing the payload to see which method the server should do");       
+		            }
+					
+					
+					if(args[0].contains("get")) {
+						// Perform GET operation
+						getRequest(args);
+					}
+					else if(args[0].contains("post")) {
+						// Perform POST operation
+						postRequest(args);
+					}
+					else {
+						payload="Must ask for a GET or POST request";
+					}
+		            
+		            logger.info("Packet: {}", packet);
+		            logger.info("Router: {}", router);
+		            logger.info("Payload:");
+		            System.out.println(payload);
+		
+		            // Send the response to the router not the client.
+		            // The peer address of the packet is the address of the client already.
+		            // We can use toBuilder to copy properties of the current packet.
+		            // This demonstrate how to create a new packet from an existing packet.
+		            Packet resp = packet.toBuilder()
+		                    .setPayload(payload.getBytes())
+		                    .create();
+		            channel.send(resp.toBuffer(), router);
+		            
+		        	
+					if(verbose) {
+						logger.info("Verbose: {}", "Sending the response to the router , then router to client");       
+		            }
+		            
+		            payload="";
+	            
 				}
-				else if(args[0].contains("post")) {
-					// Perform POST operation
-					postRequest(args);
-				}
-				else {
-					payload="Must ask for a GET or POST request";
-				}
-	            
-	            logger.info("Packet: {}", packet);
-	            logger.info("Router: {}", router);
-	            logger.info("Payload:");
-	            System.out.println(payload);
-	
-	            // Send the response to the router not the client.
-	            // The peer address of the packet is the address of the client already.
-	            // We can use toBuilder to copy properties of the current packet.
-	            // This demonstrate how to create a new packet from an existing packet.
-	            Packet resp = packet.toBuilder()
-	                    .setPayload(payload.getBytes())
-	                    .create();
-	            channel.send(resp.toBuffer(), router);
-	            
-	        	
-				if(verbose) {
-					logger.info("Verbose: {}", "Sending the response to the router , then router to client");       
-	            }
-	            
-	            payload="";
-	            
-				}else if(packet.getType()==Packet.DATAPART) {
+				// Packet was separated
+				else if(packet.getType()==Packet.DATAPART) {
 					
 					if(count==0) {
 						payload= new String(packet.getPayload(), UTF_8);
@@ -182,7 +195,6 @@ public class UDPServer {
 							buf.flip();
 						    packet = Packet.fromBuffer(buf);
 							buf.flip();
-							
           
 					}
 			
@@ -218,37 +230,80 @@ public class UDPServer {
 						postRequest(args);
 					}
 					
-					    logger.info("Packet: {}", packet);
-			            logger.info("Router: {}", router);
-			            logger.info("Payload:");
-			            System.out.println(payload);
+					logger.info("Packet: {}", packet);
+			        logger.info("Router: {}", router);
+			        logger.info("Payload:");
+			        System.out.println(payload);
 			
-			            //retrieve next packet
-			            buf.clear();
-						router =  new InetSocketAddress("localhost",3000);
-						channel.receive(buf);
-					
-						
-						// Parse a packet from the received raw data.
-						buf.flip();
-					    packet = Packet.fromBuffer(buf);
-						buf.flip();
-						
-						
-			
+			        //retrieve next packet
+			        buf.clear();
+			        router =  new InetSocketAddress("localhost",3000);
+					channel.receive(buf);
+										
+					// Parse a packet from the received raw data.
+					buf.flip();
+					packet = Packet.fromBuffer(buf);
+					buf.flip();			
 			            
-			            // Send the response to the router not the client.
-			            // The peer address of the packet is the address of the client already.
-			            // We can use toBuilder to copy properties of the current packet.
-			            // This demonstrate how to create a new packet from an existing packet.
-						String verify = new String(packet.getPayload(), UTF_8);
-						if(verify.contains("Request sent, waiting for response")) {
-					
-			            Packet resp = packet.toBuilder()
-			                    .setPayload(payload.getBytes())
-			                    .create();
-			            channel.send(resp.toBuffer(), router);
+			        // Send the response to the router not the client.
+			        // The peer address of the packet is the address of the client already.
+			        // We can use toBuilder to copy properties of the current packet.
+			        // This demonstrate how to create a new packet from an existing packet.
+					String verify = new String(packet.getPayload(), UTF_8);
 						
+					if(verify.contains("Request sent, waiting for response")) {
+						// If Packet doesn't exceed payload limit
+						if(payload.getBytes().length <= Packet.MAX_PAYLOAD) {
+							Packet resp = packet.toBuilder()
+									.setPayload(payload.getBytes())
+					                .create();
+					        channel.send(resp.toBuffer(), router);
+						}
+						// Else if Packet does indeed exceed payload limit
+						else {
+							int count=0;
+							      
+				            count = (int) Math.ceil((double)payload.getBytes().length/(double)Packet.MAX_PAYLOAD);
+				         
+					        Packet p = packet.toBuilder()
+									.setPayload(payload.getBytes())
+					                .create();
+					         
+					        if(verbose) {
+					        	logger.info("Verbose: {}", "Dividing packets to be inside the range of MAX_LEN");	
+				     	    }
+					        
+					        // Call method to divide Packet into smaller ones
+					        dividePacket(p);
+				            	
+				            // Send a first Packet indicating number of separated Packets sent to server	
+				            Packet packetNumber = packet.toBuilder()
+						            .setPayload(("Message separated in "+count).getBytes())
+					                .create();
+				      
+				            logger.info("Sending number of packet: {}", count);
+				 	        channel.send(packetNumber.toBuffer(), router);
+							
+				 	        // Setting up the windowSize
+							windowSize = arrayOfSplitPacket.size();
+							
+				 	        for(int i = 0; i < windowSize; i++) { //windowSize
+				       
+				            	channel.send(arrayOfSplitPacket.get(i).toBuffer(), router);
+				            }
+				 	          	
+				 	        if(verbose) {
+			     				logger.info("Verbose: {}", "Verifying if server is missing any packet");
+
+			     	        }
+				 	        TimeUnit.SECONDS.sleep(3);
+				 	        // Verify if entire Packet received
+				 	        verifyPackets(channel,router,buf);
+		            	
+				 	   	logger.info("all packets sent correctly");
+							
+						}
+
 			            payload="";
 			        	file=null;
 			        	count=0;
@@ -256,15 +311,62 @@ public class UDPServer {
 						}
 					}
 				}
-				 else if(packet.getType()==Packet.SYN) {
+				else if(packet.getType()==Packet.SYN) {
 					threeWayHandShake(packet,channel,router,buf);
-				}else if(packet.getType()==Packet.ACK) {
+				}
+				else if(packet.getType()==Packet.ACK) {
 					threeWayHandShake(packet,channel,router,buf);
 				}
 	        }
 	    }
 	}
 	
+	// Verifying that no response Packets was missed
+	private void verifyPackets(DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
+		    buf.clear();
+			router =  new InetSocketAddress("localhost",3000);
+			channel.receive(buf);
+		
+			// Parse a packet from the received raw data.
+			buf.flip();
+		    Packet resp = Packet.fromBuffer(buf);
+			buf.flip();
+		
+          String msg =new String(resp.getPayload(), UTF_8); 
+          boolean NoMissing;
+          if(msg.contains("AWK , everything is correct")) {
+        	 NoMissing = true;
+          }
+          else {
+        	 NoMissing = false;
+          }
+	  
+          if(NoMissing) {
+        	  return;
+          }
+          else {
+       	   	
+       	  
+              String payload =new String(resp.getPayload(), StandardCharsets.UTF_8);
+        
+              logger.info("Packet: {}", resp);
+              logger.info("Router: {}", router);
+              logger.info("Payload: {}",payload);
+              
+       	   int counter=Integer.parseInt(payload.substring(payload.length()-1));
+       	   channel.send(arrayOfSplitPacket.get(counter).toBuffer(), router);
+       	   
+   	   	   logger.info("Server: Sending Packet #"+counter);
+		
+       	   
+       	   verifyPackets(channel,router,buf);
+       	   
+          }
+
+		
+	}
+	
+	// Method checking for missing packets
 	private void missingPacket(String[] messages, Packet packet, DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
 		boolean allFilled=true;
 		
@@ -291,12 +393,13 @@ public class UDPServer {
 		}
 		
 		if(!allFilled)
-		missingPacket(messages,packet,channel,router,buf);
+			missingPacket(messages,packet,channel,router,buf);
 		
 		
 		return;
 	}
 
+	// UDP Server 3-way handshake
 	private void threeWayHandShake(Packet packet, DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
 		
 		
@@ -352,13 +455,13 @@ public class UDPServer {
         	}
         }
         
-        if(!(pathString.equals(""))){ 
+        if(!(pathString.equals(""))) { 
             File f = new File(pathString);
             f.mkdirs();
         }
        
         
-        try{ 
+        try { 
             if(!(pathString.equals("")))
                 file = new File(pathString+"/"+fileName);
             else
@@ -371,7 +474,7 @@ public class UDPServer {
                 pw.println(data);
                 pw.close();
             }
-            else{
+            else {
                 result = HTTPVersion + " 403 Forbidden\n";       
             }
             
@@ -402,13 +505,14 @@ public class UDPServer {
 			logger.info("Verbose: {}", "Executing GET Request");       
         }
 		
-		 for(int i = 0; i < args.length; i++) {
-	        	if(args[i].contains("HTTP")) {
-	        		HTTPVersion = args[i];
-	        	}else if (args[i].equals("-h")) {
-	        		headers = headers + args[i+1]+"\n";
-	        	}
+		for(int i = 0; i < args.length; i++) {
+	     	if(args[i].contains("HTTP")) {
+	        	HTTPVersion = args[i];
 	        }
+	     	else if (args[i].equals("-h")) {
+	        	headers = headers + args[i+1]+"\n";
+	        }
+	    }
 		
 		if(fileName.length()>0) {
 			getAllFiles(folder,fileName);
@@ -417,16 +521,14 @@ public class UDPServer {
 				// return all files in directory
 			      result = "GET "+HTTPVersion+" 200 OK \r\n"+headers+readFile(file); 
 			      payload = result;
-				
-				
-			}else {
+			}
+			else {
 				// return content of fileName
 				payload = "GET "+HTTPVersion+" 404 Not Found \r\n"+headers;
 			}
 			
-			
-	
-		}else {
+		}
+		else {
 			  result = "GET "+HTTPVersion+" 200 OK \r\n"+headers+getAllPath(folder,fileName);; 
 		      payload = result;
 		}
@@ -435,23 +537,21 @@ public class UDPServer {
 	
 	private static String getAllPath(File folder, String fileName) {
 		
-		  File[] filesList = folder.listFiles();
-		  String response="";
-	        fileName = fileName.trim();
-          for(File f : filesList){
-              if(f.isDirectory()) {
+		File[] filesList = folder.listFiles();
+		String response="";
+	    fileName = fileName.trim();
+        for(File f : filesList){
+        	if(f.isDirectory()) {
+            	response = response+f.getName()+"\n";
+                getAllFiles(f,fileName);
+            }
+        	if(f.isFile()){
+            	response = response+f.getName()+"\n";
             	
-            	  response = response+f.getName()+"\n";
-                  getAllFiles(f,fileName);
-              }if(f.isFile()){
-            	  response = response+f.getName()+"\n";
-            	
-              }
-          	}
-          return response;
-          }
-      
-	
+            }
+        }
+    	return response;
+    } 
 
 	private static void getAllFiles(File folder , String name) {
 		
@@ -473,24 +573,24 @@ public class UDPServer {
 	}
 	
 	private static String readFile(File f){
-			String fileData="";
+		String fileData="";
 			
-			try {
-	            Scanner myReader = new Scanner(f);
-	            while(myReader.hasNextLine()){ 
-	                fileData = fileData + myReader.nextLine();
-	                fileData = fileData +"\n";
-	            }
-	            myReader.close();
-	              
-			    } catch (FileNotFoundException e) {
-			      System.out.println("An error occurred during the lecture of the file");
-			      e.printStackTrace();
-	            }
-	      numberOfCharacters=fileData.length()-1;
+		try {
+	    	Scanner myReader = new Scanner(f);
+	        while(myReader.hasNextLine()){ 
+	        	fileData = fileData + myReader.nextLine();
+	            fileData = fileData +"\n";
+	        }
+	        myReader.close();     
+		}
+		catch (FileNotFoundException e) {
+			System.out.println("An error occurred during the lecture of the file");
+			e.printStackTrace();
+	    }
+	    numberOfCharacters=fileData.length()-1;
 	            
 		return fileData;
-		}
+	}
 	
 	private static String getName(String url) {
 		
@@ -501,5 +601,51 @@ public class UDPServer {
 		
 		return fileName;
 	}
+	
+	private static void dividePacket(Packet p) {
+    	long sequenceNumber=0;
+       
+    	Packet p2;
+    	if(p.getPayload().length < p.MAX_PAYLOAD) {
+	    	sequenceNumber = p.getSequenceNumber();
+	    	sequenceNumber ++;
+	    	p2 = new Packet(p.getType(), sequenceNumber, p.getPeerAddress(), p.getPeerPort(), Arrays.copyOf(p.getPayload(), p.MAX_PAYLOAD));
+	    
+	    	arrayOfSplitPacket.add(p2);
+    	}
+    	else {
+	    	sequenceNumber = p.getSequenceNumber();
+	        sequenceNumber ++;
+	        p2 = new Packet(p.getType(),  sequenceNumber, p.getPeerAddress(), p.getPeerPort(), Arrays.copyOf(p.getPayload(), p.MAX_PAYLOAD));
+	       
+	        arrayOfSplitPacket.add(p2);
+	    	sequenceNumber ++;
+	    	p2 = new Packet(p.getType(),  sequenceNumber, p.getPeerAddress(), p.getPeerPort(), Arrays.copyOfRange(p.getPayload(),p.MAX_PAYLOAD, p.getPayload().length));
+	    
+	    	dividePacket(p2);
+    	}
+    
+    }
+		
+	private static void wait(DatagramChannel channel,SocketAddress routerAddr,Packet packet) throws IOException {
+	    // Try to receive a packet within timeout.
+		channel.configureBlocking(false);
+	    Selector selector = Selector.open();
+	    channel.register(selector, OP_READ);
+	    selector.select(5000);
+	    if(verbose) {
+			logger.info("Verbose: {}", " waiting for response from server");
+		
+        }
+	    Set<SelectionKey> keys = selector.selectedKeys();
+	    //resend packet to router after x ms
+	    if (keys.isEmpty()) {
+	        logger.info("No answer from server , sending again Message : {}",new String(packet.getPayload(),UTF_8));
+	    	channel.send(packet.toBuffer(), routerAddr);
+	    	wait(channel,routerAddr,packet);
+	    }
+	    keys.clear();
+	    return;
+		}
 	
 }

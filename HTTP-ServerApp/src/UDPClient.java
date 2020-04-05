@@ -33,6 +33,7 @@ public class UDPClient {
 	public static String verboseLines="";
 	public static String fileName;
 	public static boolean output = false;
+	public static int windowSize = 3;
 	
     /**
      * @param routerAddr
@@ -48,83 +49,79 @@ public class UDPClient {
    				 verbose=true;
    				 args[i]="";
    			 }
-   	      if(args[i].equals("-o")) {
-   	    	  System.out.println("found -o");
-					output = true;
-					fileName = args[i+1];
-				}
-   	      if(args[i].equals("-f")) {
-   	    	  checkFile(args,i);
-				}
-   	      
-   	      
+	   	     if(args[i].equals("-o")) {
+	   	    	
+						output = true;
+						fileName = args[i+1];
+	   	     }
+	   	     if(args[i].equals("-f")) {
+	   	    	  checkFile(args,i);
+	   	     }
    		 }
    		 
    		    String msg =  createMessage(args);
             long sequenceNumber = threeWayHandShake(channel,serverAddr,routerAddr);
 
             if(handshake) {
+            	// If Packet does not exceed payload length limit
 	            if(msg.getBytes().length <= Packet.MAX_PAYLOAD) {
 	            	
-	            if(verbose) {
-	     				logger.info("Verbose: {}", "Creating Packet");
-	     				verboseLines = verboseLines+"\n"+"  Creating Packet";
+		            if(verbose) {
+		     				logger.info("Verbose: {}", "Creating Packet");
+		     				verboseLines = verboseLines+"\n"+"  Creating Packet";
+		     	    }
+		           
+		            Packet p = new Packet.Builder()
+		                    .setType(0)
+		                    .setSequenceNumber(sequenceNumber+1)
+		                    .setPortNumber(serverAddr.getPort())
+		                    .setPeerAddress(serverAddr.getAddress())
+		                    .setPayload(msg.getBytes())
+		                    .create();
+		            channel.send(p.toBuffer(), routerAddr);
+		            
+		            
+		            
+		            logger.info("Sending \"{}\" to router at {}", msg, routerAddr);
+		            
+		            if(verbose) {
+	     				logger.info("Verbose: {}", "Sending Packet to router");
+	     				verboseLines = verboseLines+"\n"+"Sending Packet to router";
 	     	        }
-	           
-	            Packet p = new Packet.Builder()
-	                    .setType(0)
-	                    .setSequenceNumber(sequenceNumber+1)
-	                    .setPortNumber(serverAddr.getPort())
-	                    .setPeerAddress(serverAddr.getAddress())
-	                    .setPayload(msg.getBytes())
-	                    .create();
-	            channel.send(p.toBuffer(), routerAddr);
+		            
+		            wait(channel,routerAddr,p);
+		
+		            // We just want a single response.
+		            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
+		            SocketAddress router = channel.receive(buf);
+		            buf.flip();
+		            Packet resp = Packet.fromBuffer(buf);
+		            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+		            
+		            if(verbose) {
+	     				logger.info("Verbose: {}", "Response coming back from server");
+	     				verboseLines = verboseLines+"\n"+"Response coming back from server"+"\n\n";
+	     				
+	     	        }
+		            
+		            logger.info("Packet: {}", resp);
+		            logger.info("Router: {}", router);
+		            logger.info("Payload:");
+		            
+		            System.out.println(verboseLines+payload);  
+		            
+		            if(output) {
+		            
+		            	writeOutput(fileName,(verboseLines+payload));
+		            }
 	            
-	            
-	            
-	            logger.info("Sending \"{}\" to router at {}", msg, routerAddr);
-	            
-	            if(verbose) {
-     				logger.info("Verbose: {}", "Sending Packet to router");
-     				verboseLines = verboseLines+"\n"+"  Sending Packet to router";
-     	        }
-	            
-	            wait(channel,routerAddr,p);
-	
-	            // We just want a single response.
-	            ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
-	            SocketAddress router = channel.receive(buf);
-	            buf.flip();
-	            Packet resp = Packet.fromBuffer(buf);
-	            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
-	            
-	            if(verbose) {
-     				logger.info("Verbose: {}", "Response coming back from server");
-     				verboseLines = verboseLines+"\n"+"  Response coming back from server"+"\n\n";
-     				
-     	        }
-	            
-	            logger.info("Packet: {}", resp);
-	            logger.info("Router: {}", router);
-	            logger.info("Payload:");
-	            
-	       
-	            
-	            System.out.println(verboseLines+payload);
-	        
-	            
-	            if(output) {
-	            
-	            	writeOutput(fileName,(verboseLines+payload));
+		            //Send FIN to end connection
 	            }
-	         
-	            
-	            //Send FIN to end connection
-	            }
+	            // If Packet payload does exceed limit
 	            else {
 	            	int count=0;
 	      
-	               	 count = (int) Math.ceil((double)msg.length()/(double)Packet.MAX_PAYLOAD);
+	               	count = (int) Math.ceil((double)msg.length()/(double)Packet.MAX_PAYLOAD);
 	         
 		            Packet p = new Packet.Builder()
 		                    .setType(4)
@@ -139,11 +136,11 @@ public class UDPClient {
 	     				verboseLines = verboseLines+"\n"+"Dividing packets to be inside the range of MAX_LEN";
 	     				
 	     	        }
+		            
+		            // Call method dividing Packet into separated ones
 	            	dividePacket(p);
-	            	
-	            	
+	            
 	            	ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
-	            	
 	            	
 	            	Packet packetNumber = new Packet.Builder()
 		                    .setType(4)
@@ -160,43 +157,135 @@ public class UDPClient {
 	     				logger.info("Verbose: {}", "Telling the server how many packets it has to expect");
 	     				verboseLines = verboseLines+"\n"+"Telling the server how many packets it has to expect";
 	     				
-	     	        }
+	     	       }
+	 	           
+	 	           // FOr efficiency, we set the client window size to be the number of Packets original Packet was separated in
+	 	           windowSize = arrayOfSplitPacket.size();
 	 	            
-	 	            
-	 	            
-	            	for(int i = 0; i < arrayOfSplitPacket.size(); i++) {
+	 	           // Sending divided packets to server
+	 	           for(int i = 0; i < windowSize; i++) {//windowSize
 	            		
 	            		channel.send(arrayOfSplitPacket.get(i).toBuffer(), routerAddr);
 
 	            	}
 	            	
-	            	  if(verbose) {
-		     				logger.info("Verbose: {}", "Verifying if server is missing any packet");
-		     				verboseLines = verboseLines+"\n"+"Verifying if server is missing any packet";
+	            	if(verbose) {
+		     			logger.info("Verbose: {}", "Verifying if server is missing any packet");
+		     			verboseLines = verboseLines+"\n"+"Verifying if server is missing any packet";
 		     				
-		     	        }
-	            		missingPackets(channel,routerAddr);
+		     	    }
+	            	   
+	            	missingPackets(channel,routerAddr);
 	            	
-	            	
-	            	
-	            	
-	            	    Packet wait = new Packet.Builder()
+	            	Packet wait = new Packet.Builder()
 			                    .setType(4)
 			                    .setSequenceNumber(sequenceNumber)
 			                    .setPortNumber(serverAddr.getPort())
 			                    .setPeerAddress(serverAddr.getAddress())
 			                    .setPayload(("Request sent, waiting for response").getBytes())
 			                    .create();
-	            	    logger.info("Request sent, waiting for response");
+	            	logger.info("Request sent, waiting for response");
 	            	    
-	            		channel.send(wait.toBuffer(), routerAddr);
-	            		// Client starts timer and awaits for response, if timer expires, packet is resent
-	                    wait(channel,routerAddr,wait);
+	            	channel.send(wait.toBuffer(), routerAddr);
+	            		
+	            	// Client starts timer and awaits for response, if timer expires, packet is resent
+	                wait(channel,routerAddr,wait);
 	            	
-	            	
-		                SocketAddress router = channel.receive(buf);
-		  	            buf.flip();
-		  	            Packet resp = Packet.fromBuffer(buf);
+		            SocketAddress router = channel.receive(buf);
+		  	        buf.flip();
+		  	        Packet resp = Packet.fromBuffer(buf); 
+		  	            
+		  	        // If Packet received was separated by server
+		  	        if(new String(resp.getPayload(), StandardCharsets.UTF_8).contains("Message separated in")) {
+		  	        	count=0;
+		  	            String payload = new String(resp.getPayload(), UTF_8);
+		  	            	
+		  	          	count=Integer.parseInt(payload.substring(payload.length()-1));
+						payload="";
+		  	        
+						String[] messages = new String[count];
+					 	
+						if(verbose) {
+							logger.info("Verbose: {}", "Receiving multiples packets because they are too big");       
+			            }
+						
+						for(int i =0;i<count;i++) {
+						
+						 	/*Packet resp = packet.toBuilder()
+				                    .setPayload(("Message received").getBytes())
+				                    .create();
+				            channel.send(resp.toBuffer(), router);
+				            */
+				            
+				            //retrieve next packet
+							wait(channel,router);
+						 
+							buf.clear();
+							router =  new InetSocketAddress("localhost",3000);
+							channel.receive(buf);
+						
+							// Parse a packet from the received raw data.
+							buf.flip();
+							resp = Packet.fromBuffer(buf);
+							buf.flip();
+       
+						 
+						 
+						/*
+				          router = channel.receive(buffer);
+				          buffer.flip();
+				          resp = Packet.fromBuffer(buffer);*/
+				      
+				  	   	messages[i]="";
+						messages[i]=new String(resp.getPayload(), UTF_8);
+						
+						}
+					
+						if(verbose) {
+							logger.info("Verbose: {}", "Verifying if we are missing packets"); 
+							verboseLines=verboseLines+"\n"+"Verifying if we are missing packets";
+			            }
+						
+						
+						
+						verifyPackets(messages,resp,channel,router,serverAddr,buf);	
+						
+						logger.info("No packet missing");
+						
+		            	Packet confirm = new Packet.Builder()
+			                    .setType(4)
+			                    .setSequenceNumber(sequenceNumber)
+			                    .setPortNumber(serverAddr.getPort())
+			                    .setPeerAddress(serverAddr.getAddress())
+			                    .setPayload(("AWK , everything is correct").getBytes())
+			                    .create();
+		            	
+		            	logger.info("AWK , everything is correct");
+		 	            channel.send(confirm.toBuffer(), routerAddr);
+						
+						payload = String.join("", messages);
+						
+						
+						 if(verbose) {
+			     				logger.info("Verbose: {}", "Response coming back from server");
+			     				verboseLines = verboseLines+"\n"+"  Response coming back from server"+"\n\n";
+			     				
+			     	        }
+						
+						 logger.info("Packet: {}", resp);
+			  	         logger.info("Router: {}", router);
+			  	         logger.info("Payload:");
+			  	            
+				         System.out.println(verboseLines+payload);
+				         
+				         if(output) {
+				            writeOutput(fileName,(verboseLines+payload));
+				            }
+				            
+		            	    arrayOfSplitPacket.clear();
+		  	        }
+		  	        // Else if Packet was not separated by server
+		  	        else {
 		  	            
 		  	            if(verbose) {
 		     				logger.info("Verbose: {}", "Response coming back from server");
@@ -214,13 +303,12 @@ public class UDPClient {
 			            }
 			            
 	            	    arrayOfSplitPacket.clear();
-	            }
+		  	        }
+		  	   }
             }
         }
     }
     
-
-
 	private static void checkFile(String[] args, int i) {
 		args[i]="-d";
 		String fileData="";
@@ -238,9 +326,7 @@ public class UDPClient {
 	   args[i+1]=fileData;
 		
 	}
-
-
-
+	
 	private static void missingPackets(DatagramChannel channel,SocketAddress routerAddr) throws IOException {
     	
     	   boolean NoMissing = wait(channel,routerAddr);
@@ -401,8 +487,8 @@ public class UDPClient {
 		    channel.register(selector, OP_READ);
 		    selector.select(5000);
 		    if(verbose) {
-				logger.info("Verbose: {}", " waiting for response from server");
-				verboseLines = verboseLines+"\n"+"  waiting for response from server";
+				logger.info("Verbose: {}", "waiting for response from server");
+				verboseLines = verboseLines+"\n"+"waiting for response from server";
 	        }
 		    Set<SelectionKey> keys = selector.selectedKeys();
 		    //resend packet to router after x ms
@@ -436,13 +522,52 @@ public class UDPClient {
 	
 			pw.println(payload);
 			pw.close();
-		
 
 		
-		
-		
-		
 		}
+	
+	private static void verifyPackets(String[] messages, Packet packet, DatagramChannel channel, SocketAddress router,InetSocketAddress serverAddress, ByteBuffer buf) throws IOException {
+		boolean allFilled=true;
+
+		for(int i=0;i<messages.length;i++) {
+
+			if(messages[i].equalsIgnoreCase("")) {
+				logger.info("Client: Missing Packet #"+i);
+				
+				Packet resp = new Packet.Builder()
+		                .setType(3) // Send AWK and will send a request afterward
+		                .setSequenceNumber(1L)
+		                .setPortNumber(serverAddress.getPort())
+		                .setPeerAddress(serverAddress.getAddress())
+		                .setPayload(("Missing packet "+i).getBytes())
+		                .create();
+ 
+	            channel.send(resp.toBuffer(), router);
+	            
+	            
+	            wait(channel,router);
+	        	buf.clear();
+				router =  new InetSocketAddress("localhost",3000);
+				channel.receive(buf);
+			
+				// Parse a packet from the received raw data.
+				buf.flip();
+				resp = Packet.fromBuffer(buf);
+				buf.flip();
+				
+				messages[i]=new String(resp.getPayload(), UTF_8);
+				logger.info("Client: Received Packet #"+i);
+	            allFilled=false;
+			}
+		}
+		
+		if(!allFilled)
+		verifyPackets(messages,packet,channel,router,serverAddress,buf);
+		
+		
+		return;
+	}
+	
 	}
 	
 
