@@ -15,10 +15,13 @@ public class UDPLaunch {
 
 	public static void main(String[] args) throws IOException {
 		
-		logger.info("Running client for request of type: {}", args[1]);
-		logger.info("Url of the request: {}", args[args.length - 1]);
 		
-		  if(args[0].equals("https")) {
+		
+		  if(args[0].equals("httpc") &&  verifyArgs(args)) {
+			  
+			  logger.info("Running client for request of type: {}", args[1]);
+				logger.info("Url of the request: {}", args[args.length - 1]);
+			  
 	            for(int i = 0 ; i < args.length ; i++) {
 	                if(args[i].equals("--router-host")) {
 	                    routerHost = args[i+1];
@@ -35,7 +38,7 @@ public class UDPLaunch {
 	                
 	            }
 	            
-		  }
+		
 		  
 		  
 		  
@@ -44,7 +47,49 @@ public class UDPLaunch {
 	            InetSocketAddress serverAddress = new InetSocketAddress(serverHost, serverPort);
 	            
 	            UDPClient.runClient(routerAddress, serverAddress, args);
+	 }
+	}
 
+	private static boolean verifyArgs(String[] args) {
+		
+		if(args[1].equalsIgnoreCase("get")) {
+			
+			for(int i=0;i<args.length;i++) {
+				if(args[i].equals("-d")|| args[i].equals("-f")) {
+					System.out.println("You cannot have a body in the GET request");
+					return false;
+			}
+				
+			}
+		}
+		if(args[1].equalsIgnoreCase("post")) {
+			boolean file=false;
+		
+			for(int i=0 ; i < args.length ; i++) {
+				if(args[i].equals("-f")) {
+					file = true;
+				
+				}
+
+			}
+
+			//checks for -d , -f or -o
+			for(int i=0 ; i < args.length ; i++) {
+				if(args[i].equals("-d") && file) {
+					System.out.println("Error : Either [-d] or [-f] can be used but not both");
+					return false;
+				}
+				//to remove if TA wants -o for post
+				if(args[i].equals("-o")) {
+					System.out.println("Error : -o is only for GET Methods");
+					return false;
+				}
+				//
+			}
+		}
+		
+		return true;
+		
 	}
 	
 	

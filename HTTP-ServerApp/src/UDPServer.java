@@ -28,19 +28,45 @@ public class UDPServer {
     private static String payload = "";
     private static String pathString = "";
     private static int count=0;
-    
+    private static boolean verbose=false;
     public static void main(String[] args) throws IOException {
-       OptionParser parser = new OptionParser();
-       
-       parser.acceptsAll(asList("port", "p"), "Listening port")
-                .withOptionalArg()
-                .defaultsTo("8007");
-
+    	
+    	if((args.length)>1 && args[1].equalsIgnoreCase("help")) {
+    		System.out.println("-v Prints debugging messages.");
+            System.out.println("-p Specifies the port number that the server will listen and serve at. Default is 8080. ");
+            System.out.println("-d   Specifies the directory that the server will use to read/write requested files. Default is the current directory when launching the application. ");
+            System.out.println();
+            return;
+    	}
+    	
+    	int newPort ;
+    	OptionParser parser = new OptionParser();
+    	parser.acceptsAll(asList("port", "p"), "Listening port")
+           .withOptionalArg()
+           .defaultsTo("8007");
+    	
+    	 if(args[0].equals("httpfs")) {	
+    		 
+    		 for(int i =0;i<args.length;i++) {
+    			 if(args[i].contains("-v")) {
+    				 verbose=true;
+    				 args[i]="";
+    			 }
+    			 if(args[i].contains("-p")) {
+    				 parser.acceptsAll(asList("port", "p"), "Listening port")
+    	                .withOptionalArg()
+    	                .defaultsTo(args[i+1]);
+    			 }
+    		 }
+    
         OptionSet opts = parser.parse(args);
         int port = Integer.parseInt((String) opts.valueOf("port"));
         UDPServer server = new UDPServer();
         server.listenAndServe(port);
-
+    	 }else {
+    		 System.out.println("Wrong parameters, you need to write httpfs as first argument to run the server");
+    	 }
+    	 
     }
 
 	private void listenAndServe(int port) throws IOException {
@@ -52,11 +78,22 @@ public class UDPServer {
                 .allocate(Packet.MAX_LEN)
                 .order(ByteOrder.BIG_ENDIAN);
 			
+			if(verbose) {
+				logger.info("Verbose: {}", "Initializing Server Socket and Allocating space to ByteBuffer...");
+              
+            }
+			
+			
 			for (; ; ) {
 				buf.clear();
 				SocketAddress router =  new InetSocketAddress("localhost",3000);
 				channel.receive(buf);
 			
+
+				if(verbose) {
+					logger.info("Verbose: {}", "Receiving packet");
+	              
+	            }
 				
 				// Parse a packet from the received raw data.
 				buf.flip();
@@ -68,6 +105,11 @@ public class UDPServer {
 				String[] args = payload.split("\\s+");
 				
 				logger.info("Method used: {}", args[0]);
+				
+				if(verbose) {
+					logger.info("Verbose: {}", "Parsing the payload to see which method the server should do");       
+	            }
+				
 				
 				if(args[0].contains("get")) {
 					// Perform GET operation
@@ -95,6 +137,11 @@ public class UDPServer {
 	                    .create();
 	            channel.send(resp.toBuffer(), router);
 	            
+	        	
+				if(verbose) {
+					logger.info("Verbose: {}", "Sending the response to the router , then router to client");       
+	            }
+	            
 	            payload="";
 	            
 				}else if(packet.getType()==Packet.DATAPART) {
@@ -111,6 +158,10 @@ public class UDPServer {
 					else {
 					
 						String[] messages = new String[count];
+					 	
+						if(verbose) {
+							logger.info("Verbose: {}", "Receiving multiples packets because they are too big");       
+			            }
 						
 					for(int i =0;i<count-1;i++) {
 							messages[i]="";
@@ -138,21 +189,31 @@ public class UDPServer {
 					
 					messages[count-1]=new String(packet.getPayload(), UTF_8);
 					
+					if(verbose) {
+						logger.info("Verbose: {}", "Verifying if we are missing packets");       
+		            }
+					
 					missingPacket(messages,packet,channel,router,buf);	
 					
 					payload = String.join("", messages);
 				
 					String[] args = payload.split("\\s+");
 					
+					if(verbose) {
+						logger.info("Verbose: {}", "Performing GET or POST operation");       
+		            }
+					
 					logger.info("Method used: {}", args[0]);
 					
 					System.out.println();
+
 					
-					if(args[0].contains("get")) {
+					if(args[0].equalsIgnoreCase("get")  ) {
 						// Perform GET operation
 						getRequest(args);
 					}
-					else if(args[0].contains("post")) {
+					else if(args[0].equalsIgnoreCase("post")) {
+						
 						// Perform POST operation
 						postRequest(args);
 					}
@@ -237,7 +298,14 @@ public class UDPServer {
 	}
 
 	private void threeWayHandShake(Packet packet, DatagramChannel channel, SocketAddress router, ByteBuffer buf) throws IOException {
+		
+		
 		if(packet.getType()==Packet.SYN) {
+			
+			if(verbose) {
+				logger.info("Verbose: {}", "Three way hand shake starting ");       
+	        }
+			
 		  	logger.info("Server : Packet SYN received");
 	     
 	        String connection = "Server : synchronization acknowledged";
@@ -261,6 +329,10 @@ public class UDPServer {
         file = null;
         String data = "";
          
+    	if(verbose) {
+			logger.info("Verbose: {}", "Executing POST Request");       
+        }
+        
         // Request : UDPServer get HTTP/1.0 "http://localhost:80/eric.txt"
         for(int i = 0; i < args.length; i++) {
         	if(args[i].contains("HTTP")) {
@@ -325,6 +397,10 @@ public class UDPServer {
 	    String data = "";
 		String fileName = getName(args[args.length-1]);
         fileName = fileName.trim();
+        
+        if(verbose) {
+			logger.info("Verbose: {}", "Executing GET Request");       
+        }
 		
 		 for(int i = 0; i < args.length; i++) {
 	        	if(args[i].contains("HTTP")) {

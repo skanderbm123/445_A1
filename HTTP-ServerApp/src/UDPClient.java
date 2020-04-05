@@ -1,4 +1,8 @@
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.*;
 import java.net.SocketAddress;
 import java.net.InetSocketAddress;
@@ -25,6 +29,10 @@ public class UDPClient {
     public static final Logger logger = LoggerFactory.getLogger(UDPClient.class);
     public static boolean handshake = false;
     public static ArrayList<Packet> arrayOfSplitPacket = new ArrayList<Packet>();
+	public static boolean verbose = false;
+	public static String verboseLines="";
+	public static String fileName;
+	public static boolean output = false;
 	
     /**
      * @param routerAddr
@@ -34,12 +42,35 @@ public class UDPClient {
      */
     public static void runClient(SocketAddress routerAddr, InetSocketAddress serverAddr , String[] args) throws IOException {
         try(DatagramChannel channel = DatagramChannel.open()){
-            String msg =  createMessage(args);
+        	
+   		 for(int i =0;i<args.length;i++) {
+   			 if(args[i].contains("-v")) {
+   				 verbose=true;
+   				 args[i]="";
+   			 }
+   	      if(args[i].equals("-o")) {
+   	    	  System.out.println("found -o");
+					output = true;
+					fileName = args[i+1];
+				}
+   	      if(args[i].equals("-f")) {
+   	    	  checkFile(args,i);
+				}
+   	      
+   	      
+   		 }
+   		 
+   		    String msg =  createMessage(args);
             long sequenceNumber = threeWayHandShake(channel,serverAddr,routerAddr);
-            
+
             if(handshake) {
 	            if(msg.getBytes().length <= Packet.MAX_PAYLOAD) {
-	            
+	            	
+	            if(verbose) {
+	     				logger.info("Verbose: {}", "Creating Packet");
+	     				verboseLines = verboseLines+"\n"+"  Creating Packet";
+	     	        }
+	           
 	            Packet p = new Packet.Builder()
 	                    .setType(0)
 	                    .setSequenceNumber(sequenceNumber+1)
@@ -48,10 +79,16 @@ public class UDPClient {
 	                    .setPayload(msg.getBytes())
 	                    .create();
 	            channel.send(p.toBuffer(), routerAddr);
-	
+	            
 	            
 	            
 	            logger.info("Sending \"{}\" to router at {}", msg, routerAddr);
+	            
+	            if(verbose) {
+     				logger.info("Verbose: {}", "Sending Packet to router");
+     				verboseLines = verboseLines+"\n"+"  Sending Packet to router";
+     	        }
+	            
 	            wait(channel,routerAddr,p);
 	
 	            // We just want a single response.
@@ -60,10 +97,26 @@ public class UDPClient {
 	            buf.flip();
 	            Packet resp = Packet.fromBuffer(buf);
 	            String payload = new String(resp.getPayload(), StandardCharsets.UTF_8);
+	            
+	            if(verbose) {
+     				logger.info("Verbose: {}", "Response coming back from server");
+     				verboseLines = verboseLines+"\n"+"  Response coming back from server"+"\n\n";
+     				
+     	        }
+	            
 	            logger.info("Packet: {}", resp);
 	            logger.info("Router: {}", router);
 	            logger.info("Payload:");
-	            System.out.println(payload);
+	            
+	       
+	            
+	            System.out.println(verboseLines+payload);
+	        
+	            
+	            if(output) {
+	            
+	            	writeOutput(fileName,(verboseLines+payload));
+	            }
 	         
 	            
 	            //Send FIN to end connection
@@ -81,8 +134,14 @@ public class UDPClient {
 		                    .setPayload(msg.getBytes())
 		                    .create();
 		         
-		          
+		            if(verbose) {
+	     				logger.info("Verbose: {}", "Dividing packets to be inside the range of MAX_LEN");
+	     				verboseLines = verboseLines+"\n"+"Dividing packets to be inside the range of MAX_LEN";
+	     				
+	     	        }
 	            	dividePacket(p);
+	            	
+	            	
 	            	ByteBuffer buf = ByteBuffer.allocate(Packet.MAX_LEN);
 	            	
 	            	
@@ -97,13 +156,25 @@ public class UDPClient {
 	            	logger.info("Sending number of packet: {}", count);
 	 	            channel.send(packetNumber.toBuffer(), routerAddr);
 	 	            
+	 	           if(verbose) {
+	     				logger.info("Verbose: {}", "Telling the server how many packets it has to expect");
+	     				verboseLines = verboseLines+"\n"+"Telling the server how many packets it has to expect";
+	     				
+	     	        }
+	 	            
+	 	            
+	 	            
 	            	for(int i = 0; i < arrayOfSplitPacket.size(); i++) {
 	            		
 	            		channel.send(arrayOfSplitPacket.get(i).toBuffer(), routerAddr);
 
 	            	}
 	            	
-	            	
+	            	  if(verbose) {
+		     				logger.info("Verbose: {}", "Verifying if server is missing any packet");
+		     				verboseLines = verboseLines+"\n"+"Verifying if server is missing any packet";
+		     				
+		     	        }
 	            		missingPackets(channel,routerAddr);
 	            	
 	            	
@@ -126,21 +197,51 @@ public class UDPClient {
 		                SocketAddress router = channel.receive(buf);
 		  	            buf.flip();
 		  	            Packet resp = Packet.fromBuffer(buf);
+		  	            
+		  	            if(verbose) {
+		     				logger.info("Verbose: {}", "Response coming back from server");
+		     				verboseLines = verboseLines+"\n"+"  Response coming back from server"+"\n\n";
+		     				
+		     	        }
 		 
 		  	            logger.info("Packet: {}", resp);
 		  	            logger.info("Router: {}", router);
 		  	            logger.info("Payload:");
-	
+		  	            
 			            System.out.println(new String(resp.getPayload(), StandardCharsets.UTF_8));
-	
-
+			            if(output) {
+			            	writeOutput(fileName,(verboseLines+new String(resp.getPayload(), StandardCharsets.UTF_8)));
+			            }
+			            
 	            	    arrayOfSplitPacket.clear();
 	            }
             }
         }
     }
     
-    private static void missingPackets(DatagramChannel channel,SocketAddress routerAddr) throws IOException {
+
+
+	private static void checkFile(String[] args, int i) {
+		args[i]="-d";
+		String fileData="";
+		
+		try {
+		      File fileObj = new File(args[i+1]);
+		      Scanner myReader = new Scanner(fileObj);
+		      fileData = myReader.nextLine();
+		      myReader.close();
+		    } catch (FileNotFoundException e) {
+		      System.out.println("An error occurred during the lecture of the file");
+		      e.printStackTrace();
+		    }
+	
+	   args[i+1]=fileData;
+		
+	}
+
+
+
+	private static void missingPackets(DatagramChannel channel,SocketAddress routerAddr) throws IOException {
     	
     	   boolean NoMissing = wait(channel,routerAddr);
  
@@ -234,7 +335,11 @@ public class UDPClient {
 	
 	
 	private static long threeWayHandShake(DatagramChannel datagramChannel,InetSocketAddress serverAddress, SocketAddress routerAddr) throws IOException {
-
+		
+		if(verbose) {
+			logger.info("Verbose: {}", "Initializing threeWayHandShake...");
+			verboseLines = verboseLines+"\n"+"Initializing threeWayHandShake...";
+        }
 	        String connectionString = "Client : Asking Server for connection #SYN";
 	        
 	        Packet connect = new Packet.Builder()
@@ -279,7 +384,11 @@ public class UDPClient {
 
 	        }
 	        
-	     
+	        if(verbose) {
+				logger.info("Verbose: {}", " threeWayHandShake Done");
+				verboseLines = verboseLines+"\n"+" threeWayHandShake Done";
+	        }
+	        
 	        handshake = true;
 	        return connect.getSequenceNumber();
 	    }
@@ -291,7 +400,10 @@ public class UDPClient {
 		    Selector selector = Selector.open();
 		    channel.register(selector, OP_READ);
 		    selector.select(5000);
-		
+		    if(verbose) {
+				logger.info("Verbose: {}", " waiting for response from server");
+				verboseLines = verboseLines+"\n"+"  waiting for response from server";
+	        }
 		    Set<SelectionKey> keys = selector.selectedKeys();
 		    //resend packet to router after x ms
 		    if (keys.isEmpty()) {
@@ -302,7 +414,37 @@ public class UDPClient {
 		    keys.clear();
 		    return;
 			}
+		
+	private static void writeOutput(String outputTxtFile,String payload) {
+		
+		
+		PrintWriter pw = null;
+		File file = null;
+		try {
+			file = new File(outputTxtFile);
+			boolean created = file.createNewFile();
+			pw = new PrintWriter(new FileOutputStream(outputTxtFile));
 		}
+		catch(FileNotFoundException e) {
+			System.out.println("File " + outputTxtFile + " not found.");
+		}
+		catch(IOException e) {
+			System.out.println("File not created");
+		}
+		
+		
+	
+			pw.println(payload);
+			pw.close();
+		
+
+		
+		
+		
+		
+		}
+	}
+	
 
 	
 	
