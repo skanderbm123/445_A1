@@ -21,7 +21,21 @@ Our code for this assignment was spread out into 3 classes:
  - `httpc get HTTP/1.0 http://localhost:8007/eric.txt`
  - `httpc get HTTP/1.0 -h User-Agent:Concordia http://localhost:8007/eric.txt`
  - `httpc get HTTP/1.0 -v -h User-Agent:Concordia http://localhost:8007/eric.txt`
- 
+ - `httpc get HTTP/1.0 -v -h User-Agent:Concordia -o skander.txt http://localhost:8007/eric.txt`
+ - `httpc get HTTP/1.0 -v -h User-Agent:Concordia -f longfile.txt http://localhost:8007/longfile.txt` 
+
+ - `httpc post HTTP/1.0 -v -h User-Agent:Concordia -d testing the POST http://localhost:8007/eric.txt`
+ - `httpc post HTTP/1.0 -v -h User-Agent:Concordia -f skander.txt http://localhost:8007/eric.txt`
+ - `httpc post HTTP/1.0 -v -h User-Agent:Concordia -d it will crash -f skander.txt http://localhost:8007/eric.txt` // this will crash
+ - `httpc post HTTP/1.0 -v -h User-Agent:Concordia -f longfile.txt http://localhost:8007/eric.txt`
+
+
+
+
+## Example
+https://i.imgur.com/az1bgaX.png
+
+
 ## Various Server commands tested
  - `httpfs`
  - `httpfs get /`

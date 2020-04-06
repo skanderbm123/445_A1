@@ -20,7 +20,7 @@ public class Packet {
 	
     public static final int MIN_LEN = 11;
     public static final int MAX_LEN = 11 + 1024;
-    public static final int MAX_PAYLOAD = 19;
+    public static final int MAX_PAYLOAD = 1024 - 11;
     
     private final int type;
     private final long sequenceNumber;
