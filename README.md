@@ -33,7 +33,7 @@ Our code for this assignment was spread out into 3 classes:
 
 
 ## Example
-https://i.imgur.com/az1bgaX.png
+![UDP Example](https://i.imgur.com/az1bgaX.png)
 
 
 ## Various Server commands tested
